@@ -151,7 +151,6 @@ Respond ONLY with valid JSON, no markdown:
         ],
       });
     }
-    });
 
     // Find the last text block in the response
     const textBlocks = response.content.filter((b) => b.type === "text");
