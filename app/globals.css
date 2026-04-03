@@ -1,22 +1,14 @@
 @import "tailwindcss";
 
 @layer base {
-  * {
-    -webkit-tap-highlight-color: transparent;
-  }
+  * { -webkit-tap-highlight-color: transparent; }
+  ::selection { background: rgba(249, 115, 22, 0.3); color: white; }
 
-  ::selection {
-    background: rgba(249, 115, 22, 0.3);
-    color: white;
-  }
-
-  /* Custom scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+  ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
 
-  /* Smooth focus outlines */
   :focus-visible {
     outline: 2px solid rgba(249, 115, 22, 0.5);
     outline-offset: 2px;
@@ -24,30 +16,74 @@
   }
 }
 
-/* Loading spinner */
-@keyframes spin-slow {
-  to { transform: rotate(360deg); }
+/* ─── Theme tokens ─── */
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f9fafb;
+  --bg-card: rgba(0, 0, 0, 0.02);
+  --bg-card-hover: rgba(0, 0, 0, 0.04);
+  --bg-chip: rgba(0, 0, 0, 0.04);
+  --bg-chip-hover: rgba(0, 0, 0, 0.07);
+  --bg-input: rgba(0, 0, 0, 0.03);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --text: #111827;
+  --text-secondary: #4b5563;
+  --text-tertiary: #9ca3af;
+  --text-muted: #d1d5db;
+  --accent: #f97316;
+  --accent-soft: rgba(249, 115, 22, 0.08);
+  --accent-glow: rgba(249, 115, 22, 0.15);
+  --scroll-thumb: #d1d5db;
+  --scroll-hover: #9ca3af;
+  --gradient-bg: radial-gradient(ellipse at top, rgba(249,115,22,0.03) 0%, transparent 50%);
+  --csv-bg: #f8fafc;
+  --csv-hint-bg: rgba(139, 92, 246, 0.04);
+  --spinner-track: rgba(0, 0, 0, 0.08);
 }
+
+.dark {
+  --bg: #08090e;
+  --bg-subtle: #0d0f16;
+  --bg-card: rgba(255, 255, 255, 0.02);
+  --bg-card-hover: rgba(255, 255, 255, 0.04);
+  --bg-chip: rgba(255, 255, 255, 0.04);
+  --bg-chip-hover: rgba(255, 255, 255, 0.08);
+  --bg-input: rgba(255, 255, 255, 0.03);
+  --border: rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --text: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --text-muted: #374151;
+  --accent: #f97316;
+  --accent-soft: rgba(249, 115, 22, 0.12);
+  --accent-glow: rgba(249, 115, 22, 0.25);
+  --scroll-thumb: #374151;
+  --scroll-hover: #4b5563;
+  --gradient-bg: radial-gradient(ellipse at top, rgba(249,115,22,0.04) 0%, transparent 50%);
+  --csv-bg: rgba(0, 0, 0, 0.3);
+  --csv-hint-bg: rgba(139, 92, 246, 0.05);
+  --spinner-track: rgba(255, 255, 255, 0.15);
+}
+
+/* ─── Animations ─── */
+@keyframes spin-slow { to { transform: rotate(360deg); } }
 .spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  width: 16px; height: 16px;
+  border: 2px solid var(--spinner-track);
   border-top-color: currentColor;
   border-radius: 50%;
   animation: spin-slow 0.7s linear infinite;
   display: inline-block;
 }
 
-/* Fade in animation */
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-up {
-  animation: fade-up 0.3s ease-out both;
-}
+.animate-fade-up { animation: fade-up 0.3s ease-out both; }
 
-/* Staggered children */
 .stagger > * { animation: fade-up 0.3s ease-out both; }
 .stagger > *:nth-child(1) { animation-delay: 0ms; }
 .stagger > *:nth-child(2) { animation-delay: 40ms; }
