@@ -145,11 +145,12 @@ function SecondaryButton({ onClick, disabled, children, variant = "green" }) {
 
 function SchoolProgramSelect({ school, program, onSchoolChange, onProgramChange }) {
   const programs = SCHOOL_PROGRAMS[school] || [];
-  const cls = { width: "100%", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 16px", fontSize: 14, color: "var(--text)", outline: "none", appearance: "none", cursor: "pointer" };
+  const cls = { width: "100%", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 16px", fontSize: 14, color: "var(--text)", outline: "none", cursor: "pointer" };
+  const optCls = { background: "#1a1a2e", color: "#e5e5e5" };
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-      <Field label="School"><select value={school} onChange={(e) => onSchoolChange(e.target.value)} style={cls}>{SCHOOLS.map((s) => <option key={s} value={s}>{s}</option>)}</select></Field>
-      <Field label="Program"><select value={program} onChange={(e) => onProgramChange(e.target.value)} style={cls}>{programs.map((p) => <option key={p} value={p}>{p}</option>)}</select></Field>
+      <Field label="School"><select value={school} onChange={(e) => onSchoolChange(e.target.value)} style={cls}>{SCHOOLS.map((s) => <option key={s} value={s} style={optCls}>{s}</option>)}</select></Field>
+      <Field label="Program"><select value={program} onChange={(e) => onProgramChange(e.target.value)} style={cls}>{programs.map((p) => <option key={p} value={p} style={optCls}>{p}</option>)}</select></Field>
     </div>
   );
 }
