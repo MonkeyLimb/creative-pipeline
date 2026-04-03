@@ -1,73 +1,60 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { createMCPSession, listTools, runAgenticLoop } from "../../lib/mcp-client.js";
-
-function computeDisclaimer(school, creative_type) {
-  if (creative_type === "Organic") return "";
-  const lines = [];
-  if (school === "FSU") {
-    lines.push("Financial Aid is available for those who qualify.");
-  } else {
-    lines.push("Financial aid may be available for those who qualify.");
-  }
-  if (school === "AIU" || school === "CTU") {
-    lines.push("Completion times vary according to the individual student.");
-  }
-  return lines.join(" ");
-}
+import { uploadAssetFromUrl, generateDesign, getDesignThumbnail, createDesignFromCandidate } from "../../lib/canva-client.js";
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { school, program, platform, creative_type, hook, subtext, cta, canva_prompt, cloudinary_url } = body;
+    const { canva_prompt, cloudinary_url } = body;
 
-    const disclaimer = computeDisclaimer(school, creative_type);
+    // Step 1: Upload asset if Cloudinary URL provided
+    let assetIds = [];
+    if (cloudinary_url && cloudinary_url !== "none" && cloudinary_url.trim()) {
+      try {
+        const assetId = await uploadAssetFromUrl(cloudinary_url);
+        if (assetId) assetIds.push(assetId);
+      } catch (err) {
+        // Continue without asset — don't block the whole flow
+        console.error("Asset upload failed:", err.message);
+      }
+    }
 
-    const systemPrompt = `You are the Canva design candidate generator for Dreambound.
-Program: ${program} | Platform: ${platform} | Creative type: ${creative_type}
-Hook: ${hook} | Subtext: ${subtext} | CTA: ${cta}
-Canva prompt: ${canva_prompt}
-Cloudinary URL: ${cloudinary_url || "none"}
-Disclaimer: ${disclaimer || "none"}
+    // Step 2: Generate design candidates
+    const designType = "instagram_post";
+    const query = canva_prompt || "Instagram ad with bold text and full bleed background";
 
-Execute these steps using the available Canva tools:
-1. If Cloudinary URL is present and not "none": call upload-asset-from-url. Get asset_id.
-2. Call generate-design, design_type "instagram_post", query = canva_prompt. Pass asset_ids if step 1 ran. Get job_id.
-3. For EACH candidate returned by generate-design, call get-design-thumbnail to get a preview URL.
-
-After completing all steps, respond ONLY with valid JSON, no markdown:
-{"job_id":"...","candidates":[{"index":0,"candidate_id":"...","thumbnail_url":"..."},...],"asset_id":"...or null","error":null}`;
-
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const sessionId = await createMCPSession();
-    const mcpTools = await listTools(sessionId);
-
-    const resultText = await runAgenticLoop({
-      client,
-      model: "claude-sonnet-4-6",
-      maxTokens: 16000,
-      system: systemPrompt,
-      userMessage: "Generate design candidates now. Return ALL candidates with their thumbnails so the user can pick one.",
-      sessionId,
-      mcpTools,
+    const { job_id, candidates: rawCandidates } = await generateDesign({
+      designType,
+      query,
+      assetIds: assetIds.length > 0 ? assetIds : undefined,
     });
 
-    if (!resultText) {
-      return Response.json({ job_id: null, candidates: [], asset_id: null, error: "No text response from model" }, { status: 500 });
+    // Step 3: Get thumbnails for each candidate
+    const candidates = [];
+    for (let i = 0; i < rawCandidates.length; i++) {
+      const c = rawCandidates[i];
+      let thumbnailUrl = c.thumbnail?.url || null;
+
+      // If candidate has a design_id, try to get a thumbnail
+      if (!thumbnailUrl && c.id) {
+        try {
+          thumbnailUrl = await getDesignThumbnail(c.id);
+        } catch {
+          // No thumbnail available
+        }
+      }
+
+      candidates.push({
+        index: i,
+        candidate_id: c.id || c.candidate_id || `${i}`,
+        thumbnail_url: thumbnailUrl,
+      });
     }
 
-    let result;
-    try {
-      result = JSON.parse(resultText);
-    } catch {
-      result = {
-        job_id: null,
-        candidates: [],
-        asset_id: null,
-        error: "Failed to parse model response: " + resultText.slice(0, 300),
-      };
-    }
-
-    return Response.json(result);
+    return Response.json({
+      job_id,
+      candidates,
+      asset_id: assetIds[0] || null,
+      error: null,
+    });
   } catch (error) {
     return Response.json(
       { job_id: null, candidates: [], asset_id: null, error: error.message },

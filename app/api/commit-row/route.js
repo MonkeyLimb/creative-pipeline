@@ -1,5 +1,16 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { createMCPSession, listTools, runAgenticLoop } from "../../lib/mcp-client.js";
+import {
+  uploadAssetFromUrl,
+  generateDesign,
+  createDesignFromCandidate,
+  startEditingTransaction,
+  getDesignPages,
+  performEditingOperations,
+  commitEditingTransaction,
+  searchFolders,
+  createFolder,
+  moveItemToFolder,
+  getDesign,
+} from "../../lib/canva-client.js";
 
 function computeDisclaimer(school, creative_type) {
   if (creative_type === "Organic") return "";
@@ -22,60 +33,98 @@ export async function POST(request) {
 
     const disclaimer = computeDisclaimer(school, creative_type);
 
-    const systemPrompt = `You are the Canva production assistant for Dreambound.
-Program: ${program} | Platform: ${platform} | Creative type: ${creative_type}
-Hook: ${hook} | Subtext: ${subtext} | CTA: ${cta}
-Canva prompt: ${canva_prompt}
-Cloudinary URL: ${cloudinary_url || "none"}
-Disclaimer: ${disclaimer || "none"}
+    // Step 1: Upload asset if needed
+    let assetIds = [];
+    if (cloudinary_url && cloudinary_url.trim()) {
+      try {
+        const assetId = await uploadAssetFromUrl(cloudinary_url);
+        if (assetId) assetIds.push(assetId);
+      } catch (err) {
+        console.error("Asset upload failed:", err.message);
+      }
+    }
 
-Execute in order using the available Canva tools:
-1. If Cloudinary URL is present and not "none": call upload-asset-from-url. Get asset_id.
-2. Call generate-design, design_type "instagram_post", query = canva_prompt. Pass asset_ids if step 1 ran. Take candidate at index 0. Get job_id and candidate_id.
-3. Call create-design-from-candidate with job_id and candidate_id.
-4. Call start-editing-transaction with design_id.
-5. Call get-design-pages.
-6. Call perform-editing-operations: hook as largest dominant text, subtext below it, CTA at bottom, disclaimer as small footer text. Remove any school names, employment language, fake URLs, fake dates.
-7. Call commit-editing-transaction.
-8. Call search-folders for "${program}". If no result: call create-folder named "${program} — ${creative_type} — ${platform}".
-9. Call move-item-to-folder with design_id and folder_id.
-
-After completing all steps, respond ONLY with valid JSON, no markdown:
-{"design_id":"...","design_url":"...","folder_url":"...","folder_name":"...","status":"success","error":null}`;
-
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const sessionId = await createMCPSession();
-    const mcpTools = await listTools(sessionId);
-
-    const resultText = await runAgenticLoop({
-      client,
-      model: "claude-sonnet-4-6",
-      maxTokens: 16000,
-      system: systemPrompt,
-      userMessage: "Execute the Canva production pipeline now. Follow each step in order.",
-      sessionId,
-      mcpTools,
+    // Step 2: Generate design
+    const { job_id, candidates } = await generateDesign({
+      designType: "instagram_post",
+      query: canva_prompt || "Instagram ad with bold text",
+      assetIds: assetIds.length > 0 ? assetIds : undefined,
     });
 
-    if (!resultText) {
-      return Response.json({ error: "No text response from model" }, { status: 500 });
+    if (!candidates.length) throw new Error("No candidates returned from generate-design");
+
+    // Step 3: Create design from first candidate
+    const candidateId = candidates[0].id || candidates[0].candidate_id;
+    const design = await createDesignFromCandidate(job_id, candidateId);
+    const designId = design?.id;
+    if (!designId) throw new Error("No design_id returned");
+
+    // Step 4: Edit text
+    const transactionId = await startEditingTransaction(designId);
+    const pages = await getDesignPages(designId);
+
+    const operations = [];
+    if (pages[0]?.elements) {
+      const textElements = pages[0].elements.filter((e) => e.type === "text");
+      textElements.sort((a, b) => (b.width || 0) * (b.height || 0) - (a.width || 0) * (a.height || 0));
+
+      const texts = [hook, subtext, cta, disclaimer].filter(Boolean);
+      for (let i = 0; i < Math.min(textElements.length, texts.length); i++) {
+        operations.push({
+          type: "update_element",
+          element_id: textElements[i].id,
+          properties: { text: texts[i] },
+        });
+      }
     }
 
-    let result;
+    if (operations.length > 0) {
+      await performEditingOperations(designId, transactionId, operations);
+    }
+    await commitEditingTransaction(designId, transactionId);
+
+    // Step 5: Folder
+    let folderId = null;
+    let folderName = `${program} — ${creative_type} — ${platform}`;
+    let folderUrl = null;
+
     try {
-      result = JSON.parse(resultText);
-    } catch {
-      result = {
-        design_id: null,
-        design_url: null,
-        folder_url: null,
-        folder_name: null,
-        status: "error",
-        error: "Failed to parse model response: " + resultText.slice(0, 200),
-      };
+      const folders = await searchFolders(program);
+      if (folders.length > 0) {
+        folderId = folders[0].id;
+        folderName = folders[0].name;
+        folderUrl = folders[0].url || null;
+      } else {
+        const newFolder = await createFolder(folderName);
+        folderId = newFolder?.id;
+        folderUrl = newFolder?.url || null;
+      }
+    } catch (err) {
+      console.error("Folder error:", err.message);
     }
 
-    return Response.json(result);
+    if (folderId) {
+      try {
+        await moveItemToFolder(designId, folderId);
+      } catch (err) {
+        console.error("Move error:", err.message);
+      }
+    }
+
+    let designUrl = `https://www.canva.com/design/${designId}`;
+    try {
+      const d = await getDesign(designId);
+      designUrl = d?.design?.url || d?.url || designUrl;
+    } catch {}
+
+    return Response.json({
+      design_id: designId,
+      design_url: designUrl,
+      folder_url: folderUrl,
+      folder_name: folderName,
+      status: "success",
+      error: null,
+    });
   } catch (error) {
     return Response.json(
       {
