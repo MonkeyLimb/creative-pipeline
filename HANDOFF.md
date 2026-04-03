@@ -39,10 +39,13 @@ Internal web app for **Dreambound** (education marketplace) that generates compl
 
 ```
 app/
-  page.js                    — Main UI (tabs, selectors, cards, theme)
+  page.js                    — Main UI (tabs, selectors, cards, theme, agent job status)
   layout.js                  — Root layout, fonts, sonner Toaster
   globals.css                — CSS custom properties, animations, theme tokens
   api/
+    agent/
+      jobs/route.js            — POST: Create agent job (proxy to backend or mock)
+      jobs/[id]/route.js       — GET: Poll agent job status
     generate-calendar/route.js  — POST: Claude generates content calendar briefs
     generate-ads-csv/route.js   — POST: Claude generates paid ad copy
     export-csv/route.js         — POST: Generates downloadable CSV file
@@ -53,6 +56,10 @@ app/
   lib/
     canva-client.js             — Canva REST API wrapper (createDesign, getDesign, folders)
     svg-generator.js            — Server-side SVG ad template generator
+
+agent/
+  server.js                  — Express agent backend (shells out to claude CLI + Canva MCP)
+  package.json               — Agent server dependencies (express, cors, uuid)
 ```
 
 ---
@@ -132,20 +139,37 @@ Web App (Vercel)
   ← Status + design URLs per row
 ```
 
-### What Needs Building
+### What Was Built
 
-**In this repo (web app side):**
-1. `POST /api/agent/jobs` — accepts ad rows, proxies to agent, returns job ID
-2. `GET /api/agent/jobs/[id]` — polls agent for job status
-3. "Send to Agent" button in Paid Ads UI
-4. Job status UI with per-row progress + design URL links
-5. For now: mock agent responses so the UI flow demos end-to-end
+**Web app side (in this repo):**
+1. `POST /api/agent/jobs` — accepts ad rows, proxies to `AGENT_BASE_URL/v1/jobs` if set, otherwise uses mock responses
+2. `GET /api/agent/jobs/[id]` — polls agent for job status (proxies or mock)
+3. "Send to Agent" button in Paid Ads UI (orange accent, lightning bolt icon)
+4. Job status panel with progress bar, per-row status dots, and "Open in Canva" links
+5. Mock fallback: when `AGENT_BASE_URL` is not set, simulates rows completing every 3s with fake Canva URLs
 
-**Separately (agent backend — not built yet):**
-- A persistent process (not serverless) with Canva MCP configured
-- Could be: Claude Agent SDK, Express server shelling to `claude` CLI, or hosted agent platform
-- Needs to handle Canva OAuth once (browser popup) then maintain session
-- Accepts JSON payload of ad rows, processes sequentially, returns design URLs
+**Agent backend (`agent/` directory):**
+- Express server (`agent/server.js`) that runs on port 4100
+- Accepts `POST /v1/jobs` with ad row payloads, returns job ID
+- Processes rows sequentially by shelling out to `claude` CLI with `--print` flag
+- Uses `--allowedTools` to scope to Canva MCP tools only (generate_design, perform_editing_operations, etc.)
+- Extracts design URLs from Claude's output (JSON or raw text parsing)
+- `GET /v1/jobs/:id` returns live status with per-row progress
+- `GET /v1/health` for health checks
+
+**To deploy the agent backend:**
+1. On a machine with `claude` CLI installed and Canva MCP configured:
+   ```bash
+   cd agent && npm install && npm start
+   ```
+2. Complete Canva OAuth once in a Claude Code session on that machine (browser popup)
+3. Set `AGENT_BASE_URL=http://your-machine:4100` in Vercel environment variables
+4. The web app will proxy all agent requests through to the backend
+
+**Environment variables for the agent server:**
+- `PORT` — server port (default: 4100)
+- `CLAUDE_PATH` — path to claude CLI binary (default: "claude")
+- `AGENT_WORK_DIR` — working directory for claude CLI spawns (default: ./workspace)
 
 ### Job Payload Shape
 ```json
@@ -195,7 +219,7 @@ Web App (Vercel)
 | `CANVA_REFRESH_TOKEN` | Token refresh (DO NOT auto-refresh — single-use, breaks chain) | Likely revoked |
 | `CANVA_CLIENT_ID` | Canva OAuth app | OC-AZ1RKS_XeaXO |
 | `CANVA_CLIENT_SECRET` | Canva OAuth app | Set in Vercel (not in code) |
-| `AGENT_BASE_URL` | Future: agent backend URL | Not set yet |
+| `AGENT_BASE_URL` | Agent backend URL (e.g. http://your-vps:4100) — if unset, mock responses used | Not set yet |
 
 **Important:** The canva-client.js `getToken()` function must NOT auto-refresh. Each refresh_token is single-use — refreshing on row 1 invalidates the token for row 2. Just use the stored access token directly.
 

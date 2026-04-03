@@ -253,10 +253,13 @@ function PaidAdsTab() {
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [agentJob, setAgentJob] = useState(null); // { id, status, total, completed, failed, rows, mock }
+  const [sending, setSending] = useState(false);
+  const pollRef = { current: null };
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
   const gen = async () => {
-    setLoading(true); setAds([]);
+    setLoading(true); setAds([]); setAgentJob(null);
     try {
       const r = await fetch("/api/generate-ads-csv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platform: plat, creative_type: ct, icps, tones, hooks, ad_count: ac, extra_context: ctx }) });
       const d = await r.json(); if (d.error) throw new Error(d.error);
@@ -271,6 +274,47 @@ function PaidAdsTab() {
   };
   const copy = () => { navigator.clipboard.writeText(csv()); setCopied(true); toast.success("CSV copied to clipboard"); setTimeout(() => setCopied(false), 2000); };
   const dl = () => { const b = new Blob([csv()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+
+  // ─── Send to Agent ───
+  const sendToAgent = async () => {
+    setSending(true);
+    try {
+      const payload = {
+        school, program, platform: plat, creative_type: ct,
+        rows: ads.map((a) => ({
+          hook_text: a.hook_text, subtext: a.subtext, cta: a.cta,
+          ai_visual_prompt: a.ai_visual_prompt, hook_format: a.hook_format,
+          messaging_archetype: a.messaging_archetype,
+        })),
+      };
+      const r = await fetch("/api/agent/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      setAgentJob(d);
+      toast.success(`Job created: ${d.id}${d.mock ? " (mock)" : ""}`);
+      // Start polling
+      startPolling(d.id);
+    } catch (e) { toast.error(`Agent error: ${e.message}`); } finally { setSending(false); }
+  };
+
+  const startPolling = (jobId) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/agent/jobs/${jobId}`);
+        const d = await r.json();
+        if (d.error) { clearInterval(pollRef.current); return; }
+        setAgentJob(d);
+        if (d.status === "completed" || d.status === "failed") {
+          clearInterval(pollRef.current);
+          toast.success(d.status === "completed" ? `All ${d.completed} designs ready` : `Job finished with ${d.failed} failures`);
+        }
+      } catch { /* keep polling */ }
+    }, 2000);
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => { return () => { if (pollRef.current) clearInterval(pollRef.current); }; }, []);
   return (
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
@@ -292,12 +336,57 @@ function PaidAdsTab() {
         <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5"><span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Ad Creatives</span><Badge color="orange">{ads.length}</Badge></div>
-            <div className="flex gap-2"><Btn2 onClick={copy} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>{copied ? "Copied!" : "Copy for Claude AI"}</Btn2><Btn2 onClick={dl}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download</Btn2></div>
+            <div className="flex gap-2">
+              <button onClick={sendToAgent} disabled={sending || (agentJob && agentJob.status === "running")} className="disabled:opacity-40 cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}>{sending ? <Spinner /> : <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}{sending ? "Sending..." : "Send to Agent"}</button>
+              <Btn2 onClick={copy} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>{copied ? "Copied!" : "Copy for Claude AI"}</Btn2>
+              <Btn2 onClick={dl}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download</Btn2>
+            </div>
           </div>
           <Card className="overflow-hidden">
             <div style={{ padding: 16, overflowX: "auto", background: "var(--bg-inset)", borderRadius: "15px 15px 0 0" }}><pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre", lineHeight: 1.6 }}>{csv()}</pre></div>
             <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-subtle)", background: "var(--violet-bg)" }}><p style={{ fontSize: 11, color: "var(--violet)" }}>Paste this CSV into Claude AI chat to generate Canva designs with AI visuals.</p></div>
           </Card>
+          {agentJob && (
+            <MotionDiv initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+              <Card className="overflow-hidden">
+                <div style={{ padding: "16px 20px" }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Agent Job</span>
+                      <Badge color={agentJob.status === "completed" ? "green" : agentJob.status === "failed" ? "default" : "orange"}>
+                        {agentJob.status}
+                      </Badge>
+                      {agentJob.mock && <Badge>mock</Badge>}
+                    </div>
+                    <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-tertiary)" }}>{agentJob.id}</span>
+                  </div>
+                  {/* Progress bar */}
+                  <div style={{ height: 6, borderRadius: 3, background: "var(--bg-inset)", overflow: "hidden", marginBottom: 12 }}>
+                    <div style={{ height: "100%", borderRadius: 3, background: agentJob.failed > 0 ? "var(--text-tertiary)" : "var(--accent)", width: `${agentJob.total > 0 ? ((agentJob.completed + agentJob.failed) / agentJob.total) * 100 : 0}%`, transition: "width 0.5s ease" }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 10 }}>
+                    {agentJob.completed}/{agentJob.total} completed{agentJob.failed > 0 ? ` · ${agentJob.failed} failed` : ""}
+                  </div>
+                  {/* Per-row status */}
+                  {agentJob.rows && (
+                    <div className="space-y-1.5">
+                      {agentJob.rows.map((row) => (
+                        <div key={row.index} className="flex items-center gap-2" style={{ fontSize: 12 }}>
+                          <span style={{ width: 18, textAlign: "center", fontFamily: "monospace", color: "var(--text-tertiary)", fontSize: 10 }}>{row.index + 1}</span>
+                          <span style={{ width: 8, height: 8, borderRadius: 99, flexShrink: 0, background: row.status === "completed" ? "var(--green)" : row.status === "running" ? "var(--accent)" : row.status === "failed" ? "#ef4444" : "var(--border)" }} className={row.status === "running" ? "spinner" : ""} />
+                          <span style={{ color: row.status === "completed" ? "var(--green)" : row.status === "failed" ? "#ef4444" : "var(--text-tertiary)", fontWeight: 500 }}>{row.status}</span>
+                          {row.design_url && (
+                            <a href={row.design_url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline", fontSize: 11, marginLeft: "auto" }}>Open in Canva</a>
+                          )}
+                          {row.error && <span style={{ color: "#ef4444", fontSize: 10, marginLeft: "auto" }}>{row.error}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </MotionDiv>
+          )}
           <div className="space-y-2.5">{ads.map((ad, i) => <AdCard key={i} ad={ad} i={i} />)}</div>
         </MotionDiv>
       )}
