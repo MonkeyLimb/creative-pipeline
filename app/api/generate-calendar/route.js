@@ -52,13 +52,17 @@ export async function POST(request) {
     const {
       school, program, platforms, creative_type,
       sizes, icps, tones, hooks,
-      date_range, post_count, extra_context,
+      posts_per_day, dates, extra_context,
     } = body;
+
+    const totalPosts = posts_per_day * dates.length;
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const today = new Date().toISOString().split("T")[0];
-    const userMessage = `Generate a content calendar of exactly ${post_count} posts starting from ${today} for a ${date_range.toLowerCase()} period.
+    const dateList = dates.join(", ");
+    const userMessage = `Generate a content calendar of exactly ${totalPosts} posts for these specific dates: ${dateList}
+
+Create exactly ${posts_per_day} post(s) per day for each date listed above.
 
 Distribute posts across these platforms: ${platforms.join(", ")}
 Use these sizes: ${sizes.join(", ")}
@@ -67,11 +71,11 @@ Use these tones: ${tones.join(", ")}
 Use these hook archetypes: ${hooks.join(", ")}
 
 Vary the combinations — don't repeat the same ICP + tone + hook combo. Mix platforms and sizes naturally.
-Space posts evenly across the ${date_range.toLowerCase()} period (not all on the same day).
+Each date must have exactly ${posts_per_day} post(s). Use the exact dates provided — do not add or skip any dates.
 
 ${extra_context ? `Additional context from the user:\n${extra_context}` : ""}
 
-Return exactly ${post_count} post objects in a JSON array.`;
+Return exactly ${totalPosts} post objects in a JSON array.`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",

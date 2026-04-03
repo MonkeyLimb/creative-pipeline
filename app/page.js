@@ -19,8 +19,7 @@ const FORMATS = ["Single", "Carousel"];
 const ICPS = ["Working Adult", "Career Reset", "Ambition Blocker"];
 const TONES = ["Recognition", "Belief", "Awareness"];
 const HOOKS = ["Objection Flip", "Stat/Fact", "Day in the Life", "Pain Point", "Transformation", "Curiosity"];
-const DR = ["1 Week", "2 Weeks", "1 Month"];
-const PC = [3, 5, 7, 10, 14, 20, 30];
+const PPD = [1, 2, 3, 4, 5];
 const AC = [1, 3, 5, 7, 10, 15];
 
 function useTheme() {
@@ -73,6 +72,35 @@ function Spinner() { return <span className="spinner" />; }
 
 function Sel({ value, onChange, options }) {
   return <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
+}
+
+function DatePicker({ dates, onChange }) {
+  const addDate = (e) => {
+    const v = e.target.value;
+    if (v && !dates.includes(v)) onChange([...dates, v].sort());
+    e.target.value = "";
+  };
+  const remove = (d) => onChange(dates.filter((x) => x !== d));
+  const fmt = (d) => { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); };
+  const today = new Date().toISOString().split("T")[0];
+  return (
+    <div>
+      <input type="date" min={today} onChange={addDate} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }} />
+      {dates.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {dates.map((d) => (
+            <span key={d} className="flex items-center gap-1" style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 7, background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
+              {fmt(d)}
+              <button onClick={() => remove(d)} className="cursor-pointer" style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 13, lineHeight: 1, padding: 0 }}>&times;</button>
+            </span>
+          ))}
+          {dates.length > 1 && (
+            <button onClick={() => onChange([])} className="cursor-pointer" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: "3px 6px" }}>Clear all</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SPSelect({ school, program, onS, onP }) {
@@ -187,8 +215,8 @@ function CalendarTab() {
   const [icps, setIcps] = useState(["Working Adult"]);
   const [tones, setTones] = useState(["Belief"]);
   const [hooks, setHooks] = useState(["Transformation"]);
-  const [dr, setDr] = useState("1 Week");
-  const [pc, setPc] = useState(5);
+  const [ppd, setPpd] = useState(2);
+  const [dates, setDates] = useState([]);
   const [fmt, setFmt] = useState("Single");
   const [ctx, setCtx] = useState("");
   const [posts, setPosts] = useState([]);
@@ -200,7 +228,7 @@ function CalendarTab() {
   const gen = async () => {
     setLoading(true); setPosts([]);
     try {
-      const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, format: fmt, sizes, icps, tones, hooks, date_range: dr, post_count: pc, extra_context: ctx }) });
+      const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, format: fmt, sizes, icps, tones, hooks, posts_per_day: ppd, dates, extra_context: ctx }) });
       const d = await r.json(); if (d.error) throw new Error(d.error);
       setPosts(d.posts); toast.success(`Generated ${d.posts.length} posts`);
     } catch (e) { toast.error(e.message); } finally { setLoading(false); }
@@ -224,9 +252,9 @@ function CalendarTab() {
           <div><Lbl>Sizes</Lbl><div className="flex gap-1.5 flex-wrap">{SIZES.map((s) => <MChip key={s} label={s} active={sizes.includes(s)} onClick={() => tog(sizes, setSizes, s)} />)}</div></div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
-          <div><Lbl>Date Range</Lbl><Sel value={dr} onChange={setDr} options={DR} /></div>
-          <div><Lbl>Posts</Lbl><Sel value={pc} onChange={(v) => setPc(Number(v))} options={PC} /></div>
-          <div className="sm:col-span-2 flex items-end"><Btn onClick={gen} disabled={loading || !plat.length}>{loading && <Spinner />}{loading ? "Generating..." : `Generate ${pc} Posts`}</Btn></div>
+          <div><Lbl>Posts per Day</Lbl><Sel value={ppd} onChange={(v) => setPpd(Number(v))} options={PPD} /></div>
+          <div className="sm:col-span-2"><Lbl>Dates</Lbl><DatePicker dates={dates} onChange={setDates} /></div>
+          <div className="flex items-end"><Btn onClick={gen} disabled={loading || !plat.length || !dates.length}>{loading && <Spinner />}{loading ? "Generating..." : `Generate ${ppd * dates.length} Posts`}</Btn></div>
         </div>
         {/* Collapsible targeting options */}
         <button onClick={() => setShowMore(!showMore)} className="cursor-pointer flex items-center gap-1.5" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>
