@@ -1,16 +1,36 @@
 // Canva Connect REST API client
-// Uses documented endpoints at api.canva.com/rest/v1
-
 const CANVA_API = "https://api.canva.com/rest/v1";
 
-function getToken() {
+async function getToken() {
+  // Try refreshing first
+  const refreshToken = process.env.CANVA_REFRESH_TOKEN;
+  const clientId = process.env.CANVA_CLIENT_ID;
+  const clientSecret = process.env.CANVA_CLIENT_SECRET;
+
+  if (refreshToken && clientId && clientSecret) {
+    try {
+      const res = await fetch(`${CANVA_API}/oauth/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
+        },
+        body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.access_token) return data.access_token;
+      }
+    } catch {}
+  }
+
   const token = process.env.CANVA_ACCESS_TOKEN;
-  if (!token) throw new Error("CANVA_ACCESS_TOKEN is not set. Add it to your Vercel Environment Variables.");
+  if (!token) throw new Error("CANVA_ACCESS_TOKEN is not set");
   return token;
 }
 
 async function canvaFetch(path, options = {}) {
-  const token = getToken();
+  const token = await getToken();
   const res = await fetch(`${CANVA_API}${path}`, {
     ...options,
     headers: {
@@ -19,63 +39,91 @@ async function canvaFetch(path, options = {}) {
       ...options.headers,
     },
   });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Canva ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const ct = res.headers.get("content-type") || "";
+  return ct.includes("json") ? res.json() : null;
+}
+
+// Upload an image by providing raw bytes
+export async function uploadAsset(imageBuffer, fileName) {
+  const token = await getToken();
+  const formData = new FormData();
+  const blob = new Blob([imageBuffer], { type: "image/png" });
+  formData.append("asset", blob, fileName || "design.png");
+
+  const res = await fetch(`${CANVA_API}/asset-uploads`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Canva API ${res.status}: ${text}`);
+    throw new Error(`Canva asset upload ${res.status}: ${text.slice(0, 200)}`);
   }
-
-  const contentType = res.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    return res.json();
-  }
-  return null;
+  const data = await res.json();
+  return data.job || data;
 }
 
-// Design type presets for platforms
-const DESIGN_PRESETS = {
-  instagram: "instagram_post",       // 1080x1080
-  facebook: "facebook_post",         // 940x788
-  tiktok: "tiktok_video",           // 1080x1920
-};
+// Create a design import from image data URL
+export async function importDesign(title, imageBase64, platform) {
+  const token = await getToken();
 
-// ── Create a blank design ──
-export async function createDesign({ title, platform }) {
-  const presetName = DESIGN_PRESETS[platform?.toLowerCase()] || "instagram_post";
+  // Convert base64 to buffer
+  const imageBuffer = Buffer.from(imageBase64, "base64");
+
+  // Use design import with the image
+  const formData = new FormData();
+  const blob = new Blob([imageBuffer], { type: "image/png" });
+  formData.append("import_data", blob, `${title}.png`);
+  formData.append("title", title);
+
+  const res = await fetch(`${CANVA_API}/imports`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Canva import ${res.status}: ${text.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  return data.job || data;
+}
+
+// Create a blank design
+export async function createDesign(title, platform) {
+  const presets = { instagram: "instagram_post", facebook: "facebook_post", tiktok: "tiktok_video" };
   const data = await canvaFetch("/designs", {
     method: "POST",
     body: JSON.stringify({
-      design_type: {
-        type: "preset",
-        name: presetName,
-      },
-      title: title || "Untitled Design",
+      design_type: { type: "preset", name: presets[platform?.toLowerCase()] || "instagram_post" },
+      title: title || "Untitled",
     }),
   });
-  return data.design;
+  return data.design || data;
 }
 
-// ── Get design details ──
+// Get design details
 export async function getDesign(designId) {
   const data = await canvaFetch(`/designs/${designId}`);
   return data.design || data;
 }
 
-// ── List folders (search by name) ──
+// Search folders
 export async function searchFolders(query) {
   try {
     const data = await canvaFetch(`/folders/search?query=${encodeURIComponent(query)}`);
     return data.items || [];
-  } catch (err) {
-    // search endpoint may not exist — try listing
-    if (err.message.includes("404")) {
-      return [];
-    }
-    throw err;
-  }
+  } catch { return []; }
 }
 
-// ── Create a folder ──
+// Create folder
 export async function createFolder(name) {
   const data = await canvaFetch("/folders", {
     method: "POST",
@@ -84,63 +132,10 @@ export async function createFolder(name) {
   return data.folder || data;
 }
 
-// ── Move item to folder ──
+// Move item to folder
 export async function moveItemToFolder(itemId, folderId) {
   return canvaFetch(`/folders/${folderId}/items`, {
     method: "POST",
-    body: JSON.stringify({
-      item_id: itemId,
-      item_type: "design",
-    }),
+    body: JSON.stringify({ item_id: itemId, item_type: "design" }),
   });
-}
-
-// ── Upload asset from URL ──
-export async function uploadAssetFromUrl(url) {
-  const data = await canvaFetch("/asset-uploads", {
-    method: "POST",
-    body: JSON.stringify({ url }),
-  });
-  return data.job?.id || data.asset?.id || null;
-}
-
-// ── Export design (get a PNG/PDF) ──
-export async function exportDesign(designId, format = "png") {
-  const data = await canvaFetch(`/designs/${designId}/exports`, {
-    method: "POST",
-    body: JSON.stringify({
-      format,
-    }),
-  });
-  return data;
-}
-
-// ── Token refresh ──
-export async function refreshAccessToken() {
-  const refreshToken = process.env.CANVA_REFRESH_TOKEN;
-  const clientId = process.env.CANVA_CLIENT_ID;
-  const clientSecret = process.env.CANVA_CLIENT_SECRET;
-
-  if (!refreshToken || !clientId || !clientSecret) {
-    throw new Error("Missing CANVA_REFRESH_TOKEN, CANVA_CLIENT_ID, or CANVA_CLIENT_SECRET for token refresh");
-  }
-
-  const res = await fetch("https://api.canva.com/rest/v1/oauth/token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
-    },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Token refresh failed: ${text}`);
-  }
-
-  return res.json();
 }

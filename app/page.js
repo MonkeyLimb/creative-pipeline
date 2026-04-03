@@ -100,6 +100,7 @@ function mapCSVRow(row, index) {
     folder_url: null,
     folder_name: null,
     copy_text: [],
+    image_preview: null,
     error: null,
   };
 }
@@ -254,9 +255,16 @@ function CreativeCard({ creative, index, onUpdate, onCommitSingle, onRebuild }) 
         <EditableField label="CTA" value={creative.cta} onChange={(v) => update("cta", v)} />
       </div>
 
-      {/* Done state — links + copy text */}
+      {/* Done state — image preview + links + copy text */}
       {creative.status === "done" && (
         <div className="space-y-3">
+          {creative.image_preview && (
+            <img
+              src={creative.image_preview}
+              alt="Generated design"
+              className="w-full rounded-lg border border-gray-700/50"
+            />
+          )}
           <div className="flex gap-3">
             {creative.design_url && (
               <a
@@ -399,6 +407,7 @@ export default function Home() {
                   folder_url: result.folder_url,
                   folder_name: result.folder_name,
                   copy_text: result.copy_text || [],
+                  image_preview: result.image_preview || null,
                 }
               : cr
           )

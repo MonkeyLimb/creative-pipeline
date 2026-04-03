@@ -1,64 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-
-// Get a fresh Canva MCP token — try MCP-specific refresh first, then Connect API refresh
-async function getCanvaToken() {
-  // Try MCP-specific token refresh (from /api/canva-mcp-auth flow)
-  const mcpRefresh = process.env.CANVA_MCP_REFRESH_TOKEN;
-  const mcpClientId = process.env.CANVA_MCP_CLIENT_ID;
-  const mcpTokenEndpoint = process.env.CANVA_MCP_TOKEN_ENDPOINT;
-
-  if (mcpRefresh && mcpClientId && mcpTokenEndpoint) {
-    try {
-      const res = await fetch(mcpTokenEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: mcpRefresh,
-          client_id: mcpClientId,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.access_token) return data.access_token;
-      }
-    } catch (err) {
-      console.error("MCP token refresh failed:", err.message);
-    }
-  }
-
-  // Fallback: try Connect API refresh
-  const refreshToken = process.env.CANVA_REFRESH_TOKEN;
-  const clientId = process.env.CANVA_CLIENT_ID;
-  const clientSecret = process.env.CANVA_CLIENT_SECRET;
-
-  if (refreshToken && clientId && clientSecret) {
-    try {
-      const res = await fetch("https://api.canva.com/rest/v1/oauth/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
-        },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: refreshToken,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.access_token) return data.access_token;
-      }
-    } catch (err) {
-      console.error("Connect API token refresh failed:", err.message);
-    }
-  }
-
-  // Final fallback: stored token
-  const token = process.env.CANVA_ACCESS_TOKEN;
-  if (!token) throw new Error("No CANVA_ACCESS_TOKEN available and all refresh attempts failed");
-  return token;
-}
+import { createDesign, getDesign, searchFolders, createFolder, moveItemToFolder } from "../../lib/canva-client.js";
 
 function computeDisclaimer(school, creative_type) {
   if (creative_type === "Organic") return "";
@@ -74,121 +15,131 @@ function computeDisclaimer(school, creative_type) {
   return lines.join(" ");
 }
 
+const PLATFORM_DIMS = {
+  instagram: { w: 1080, h: 1080 },
+  facebook: { w: 940, h: 788 },
+  tiktok: { w: 1080, h: 1920 },
+};
+
 export async function POST(request) {
   try {
     const body = await request.json();
     const { school, program, platform, creative_type, hook, subtext, cta, canva_prompt, cloudinary_url } = body;
 
     const disclaimer = computeDisclaimer(school, creative_type);
+    const dims = PLATFORM_DIMS[platform?.toLowerCase()] || PLATFORM_DIMS.instagram;
 
-    const systemPrompt = `You are the Canva production assistant for Dreambound.
-Program: ${program} | Platform: ${platform} | Creative type: ${creative_type}
-Hook: ${hook} | Subtext: ${subtext} | CTA: ${cta}
-Canva prompt: ${canva_prompt}
-Cloudinary URL: ${cloudinary_url || "none"}
-Disclaimer: ${disclaimer || "none"}
-
-Execute in order using Canva MCP tools:
-1. If Cloudinary URL is present: call upload-asset-from-url. Get asset_id.
-2. Call generate-design, design_type "instagram_post", query = canva_prompt. Pass asset_ids if step 1 ran. Take candidate at index 0. Get job_id and candidate_id.
-3. Call create-design-from-candidate with job_id and candidate_id.
-4. Call start-editing-transaction with design_id.
-5. Call get-design-pages.
-6. Call perform-editing-operations: hook as largest dominant text, subtext below it, CTA at bottom, disclaimer as small footer text. Remove any school names, employment language, fake URLs, fake dates.
-7. Call commit-editing-transaction.
-8. Call search-folders for "${program}". If no result: call create-folder named "${program} — ${creative_type} — ${platform}".
-9. Call move-item-to-folder with design_id and folder_id.
-
-Respond ONLY with valid JSON, no markdown:
-{"design_id":"...","design_url":"...","folder_url":"...","folder_name":"...","status":"success","error":null}`;
-
+    // Step 1: Generate ad image with Claude
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    // Try without authorization_token first (Anthropic may handle Canva auth natively)
-    let response;
+    const imagePrompt = `Create a ${platform} ${creative_type} ad creative for Dreambound education platform.
+
+Design specs:
+- Dimensions: ${dims.w}x${dims.h}px
+- Style: ${canva_prompt || "Bold, modern ad with full bleed background"}
+- Program: ${program}
+
+Text to include on the design:
+- HOOK (large, dominant, top): "${hook}"
+- SUBTEXT (medium, below hook): "${subtext}"
+- CTA (button or bold, bottom): "${cta}"
+${disclaimer ? `- DISCLAIMER (small footer): "${disclaimer}"` : ""}
+
+Brand rules:
+- Brand name: Dreambound (only brand shown)
+- No school names visible
+- Bold white or light text on dark/vibrant background
+- Professional, clean, educational feel
+- No stock photo people faces
+${cloudinary_url ? `- Use this as background reference: ${cloudinary_url}` : ""}
+
+Generate this as a complete, ready-to-use ad image.`;
+
+    const imageResponse = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      messages: [
+        {
+          role: "user",
+          content: imagePrompt,
+        },
+      ],
+    });
+
+    // Extract the image from the response
+    let imageBase64 = null;
+    let imageMediaType = null;
+    for (const block of imageResponse.content) {
+      if (block.type === "image") {
+        imageBase64 = block.source.data;
+        imageMediaType = block.source.media_type;
+        break;
+      }
+    }
+
+    // Step 2: Create design in Canva
+    const title = `${program} — ${hook?.slice(0, 30) || "Creative"}`;
+    const design = await createDesign(title, platform);
+    const designId = design?.id;
+    if (!designId) throw new Error("Failed to create Canva design");
+
+    // Get design URL
+    let designUrl = design?.url || design?.edit_url;
+    if (!designUrl) {
+      try {
+        const details = await getDesign(designId);
+        designUrl = details?.url || details?.edit_url || `https://www.canva.com/design/${designId}/edit`;
+      } catch {
+        designUrl = `https://www.canva.com/design/${designId}/edit`;
+      }
+    }
+
+    // Step 3: Find or create folder
+    let folderId = null;
+    let folderName = `${program} — ${creative_type} — ${platform}`;
+    let folderUrl = null;
+
     try {
-      response = await client.beta.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 16000,
-        betas: ["mcp-client-2025-11-20"],
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: "Execute the Canva production pipeline now. Follow each step in order using the MCP tools.",
-          },
-        ],
-        mcp_servers: [
-          {
-            type: "url",
-            url: "https://mcp.canva.com/mcp",
-            name: "canva",
-          },
-        ],
-        tools: [
-          {
-            type: "mcp_toolset",
-            mcp_server_name: "canva",
-          },
-        ],
-      });
-    } catch (firstErr) {
-      // If no-token fails, try with token
-      const canvaToken = await getCanvaToken();
-      response = await client.beta.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 16000,
-        betas: ["mcp-client-2025-11-20"],
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: "Execute the Canva production pipeline now. Follow each step in order using the MCP tools.",
-          },
-        ],
-        mcp_servers: [
-          {
-            type: "url",
-            url: "https://mcp.canva.com/mcp",
-            name: "canva",
-            authorization_token: canvaToken,
-          },
-        ],
-        tools: [
-          {
-            type: "mcp_toolset",
-            mcp_server_name: "canva",
-          },
-        ],
-      });
+      const folders = await searchFolders(program);
+      if (folders.length > 0) {
+        folderId = folders[0].id;
+        folderName = folders[0].name || folderName;
+        folderUrl = folders[0].url || null;
+      }
+    } catch {}
+
+    if (!folderId) {
+      try {
+        const f = await createFolder(folderName);
+        folderId = f?.id;
+        folderUrl = f?.url || null;
+      } catch (err) {
+        console.error("Folder creation failed:", err.message);
+      }
     }
 
-    // Find the last text block in the response
-    const textBlocks = response.content.filter((b) => b.type === "text");
-    const textBlock = textBlocks.length > 0 ? textBlocks[textBlocks.length - 1] : null;
-
-    if (!textBlock) {
-      return Response.json(
-        { design_id: null, design_url: null, folder_url: null, folder_name: null, status: "error", error: "No text response from model" },
-        { status: 500 }
-      );
+    // Step 4: Move design to folder
+    if (folderId && designId) {
+      try {
+        await moveItemToFolder(designId, folderId);
+      } catch (err) {
+        console.error("Move failed:", err.message);
+      }
     }
 
-    let result;
-    try {
-      result = JSON.parse(textBlock.text);
-    } catch {
-      result = {
-        design_id: null,
-        design_url: null,
-        folder_url: null,
-        folder_name: null,
-        status: "error",
-        error: "Failed to parse model response: " + textBlock.text.slice(0, 200),
-      };
-    }
+    // Build copy text and image preview
+    const copyText = [hook, subtext, cta, disclaimer].filter(Boolean);
 
-    return Response.json(result);
+    return Response.json({
+      design_id: designId,
+      design_url: designUrl,
+      folder_url: folderUrl,
+      folder_name: folderName,
+      copy_text: copyText,
+      image_preview: imageBase64 ? `data:${imageMediaType || "image/png"};base64,${imageBase64}` : null,
+      status: "success",
+      error: null,
+    });
   } catch (error) {
     return Response.json(
       {
@@ -196,6 +147,8 @@ Respond ONLY with valid JSON, no markdown:
         design_url: null,
         folder_url: null,
         folder_name: null,
+        copy_text: [],
+        image_preview: null,
         status: "error",
         error: error.message,
       },
