@@ -20,6 +20,7 @@ const ICPS = ["Working Adult", "Career Reset", "Ambition Blocker"];
 const TONES = ["Recognition", "Belief", "Awareness"];
 const HOOKS = ["Objection Flip", "Stat/Fact", "Day in the Life", "Pain Point", "Transformation", "Curiosity"];
 const PPD = [1, 2, 3, 4, 5];
+const DR = ["1 Week", "2 Weeks", "1 Month"];
 const AC = [1, 3, 5, 7, 10, 15];
 
 function useTheme() {
@@ -74,7 +75,7 @@ function Sel({ value, onChange, options }) {
   return <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
 }
 
-function DatePicker({ dates, onChange }) {
+function DatePicker({ dates, onChange, mode, onModeChange, dateRange, onDateRangeChange }) {
   const addDate = (e) => {
     const v = e.target.value;
     if (v && !dates.includes(v)) onChange([...dates, v].sort());
@@ -85,19 +86,29 @@ function DatePicker({ dates, onChange }) {
   const today = new Date().toISOString().split("T")[0];
   return (
     <div>
-      <input type="date" min={today} onChange={addDate} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }} />
-      {dates.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {dates.map((d) => (
-            <span key={d} className="flex items-center gap-1" style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 7, background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
-              {fmt(d)}
-              <button onClick={() => remove(d)} className="cursor-pointer" style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 13, lineHeight: 1, padding: 0 }}>&times;</button>
-            </span>
-          ))}
-          {dates.length > 1 && (
-            <button onClick={() => onChange([])} className="cursor-pointer" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: "3px 6px" }}>Clear all</button>
+      <div className="flex gap-1.5 mb-2">
+        <Chip label="Pick Dates" active={mode === "dates"} onClick={() => onModeChange("dates")} />
+        <Chip label="Date Range" active={mode === "range"} onClick={() => onModeChange("range")} />
+      </div>
+      {mode === "range" ? (
+        <Sel value={dateRange} onChange={onDateRangeChange} options={DR} />
+      ) : (
+        <>
+          <input type="date" min={today} onChange={addDate} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }} />
+          {dates.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {dates.map((d) => (
+                <span key={d} className="flex items-center gap-1" style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 7, background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
+                  {fmt(d)}
+                  <button onClick={() => remove(d)} className="cursor-pointer" style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 13, lineHeight: 1, padding: 0 }}>&times;</button>
+                </span>
+              ))}
+              {dates.length > 1 && (
+                <button onClick={() => onChange([])} className="cursor-pointer" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: "3px 6px" }}>Clear all</button>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
@@ -172,36 +183,46 @@ function AdCard({ ad, i }) {
   );
 }
 
-// ─── Guide ───
-function Guide({ onDismiss }) {
+// ─── Guide Sidebar ───
+function GuideSidebar({ open, onClose }) {
   const data = [
-    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Select school and program", "Tap platforms, sizes, ICPs, tones, hooks", "Set date range and post count", "Generate — AI creates compliant briefs", "Expand posts to review all details", "Export CSV for Google Sheets"] },
-    { t: "Paid Ads CSV", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", steps: ["Pick school, program, platform, type", "Select ICP targets, tones, archetypes", "Choose number of ads", "Generate compliant ad copy", "Copy CSV to clipboard", "Paste into Claude AI for Canva designs"] },
+    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Select school and program", "Pick dates or a date range with posts-per-day cadence", "Tap platforms, sizes, ICPs, tones, hooks", "Generate — AI creates compliant briefs", "Expand posts to review all details", "Export CSV for Google Sheets"] },
+    { t: "Paid Ads CSV", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", steps: ["Pick school, program, platform, type", "Select ICP targets, tones, archetypes", "Choose number of ads", "Generate compliant ad copy", "Copy for Canva — paste into Claude Chat", "Claude generates Canva designs automatically"] },
   ];
   return (
-    <MotionDiv initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-      <Card className="mb-8 overflow-hidden">
-        <div style={{ padding: "24px 24px 20px" }}>
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5"><div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div><span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Getting Started</span></div>
-            <button onClick={onDismiss} className="cursor-pointer" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 12px" }}>Got it</button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {data.map((s) => (
-              <div key={s.t}>
-                <div className="flex items-center gap-2 mb-3"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg><span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.t}</span></div>
-                <div className="space-y-2">{s.steps.map((step, j) => (
-                  <div key={j} className="flex gap-2.5 items-start">
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "var(--accent)", background: "var(--accent-bg)", borderRadius: 5, padding: "1px 6px", minWidth: 20, textAlign: "center", marginTop: 2 }}>{j + 1}</span>
-                    <span style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{step}</span>
-                  </div>
-                ))}</div>
+    <AnimatePresence>
+      {open && (
+        <>
+          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 40 }} />
+          <MotionDiv initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 26, stiffness: 300 }} style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(380px, 90vw)", background: "var(--bg)", borderLeft: "1px solid var(--border)", zIndex: 50, overflowY: "auto", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)" }}>
+            <div style={{ padding: "24px 20px" }}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2.5">
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Getting Started</span>
+                </div>
+                <button onClick={onClose} className="cursor-pointer" style={{ background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px", color: "var(--text-tertiary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
-      </Card>
-    </MotionDiv>
+              <div className="space-y-8">
+                {data.map((s) => (
+                  <div key={s.t}>
+                    <div className="flex items-center gap-2 mb-3"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg><span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.t}</span></div>
+                    <div className="space-y-2.5">{s.steps.map((step, j) => (
+                      <div key={j} className="flex gap-2.5 items-start">
+                        <span style={{ fontSize: 10, fontWeight: 800, color: "var(--accent)", background: "var(--accent-bg)", borderRadius: 5, padding: "1px 6px", minWidth: 20, textAlign: "center", marginTop: 2 }}>{j + 1}</span>
+                        <span style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{step}</span>
+                      </div>
+                    ))}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </MotionDiv>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -216,7 +237,9 @@ function CalendarTab() {
   const [tones, setTones] = useState(["Belief"]);
   const [hooks, setHooks] = useState(["Transformation"]);
   const [ppd, setPpd] = useState(2);
+  const [dateMode, setDateMode] = useState("dates");
   const [dates, setDates] = useState([]);
+  const [dr, setDr] = useState("1 Week");
   const [fmt, setFmt] = useState("Single");
   const [ctx, setCtx] = useState("");
   const [posts, setPosts] = useState([]);
@@ -228,7 +251,7 @@ function CalendarTab() {
   const gen = async () => {
     setLoading(true); setPosts([]);
     try {
-      const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, format: fmt, sizes, icps, tones, hooks, posts_per_day: ppd, dates, extra_context: ctx }) });
+      const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, format: fmt, sizes, icps, tones, hooks, posts_per_day: ppd, date_mode: dateMode, dates, date_range: dr, extra_context: ctx }) });
       const d = await r.json(); if (d.error) throw new Error(d.error);
       setPosts(d.posts); toast.success(`Generated ${d.posts.length} posts`);
     } catch (e) { toast.error(e.message); } finally { setLoading(false); }
@@ -253,8 +276,8 @@ function CalendarTab() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
           <div><Lbl>Posts per Day</Lbl><Sel value={ppd} onChange={(v) => setPpd(Number(v))} options={PPD} /></div>
-          <div className="sm:col-span-2"><Lbl>Dates</Lbl><DatePicker dates={dates} onChange={setDates} /></div>
-          <div className="flex items-end"><Btn onClick={gen} disabled={loading || !plat.length || !dates.length}>{loading && <Spinner />}{loading ? "Generating..." : `Generate ${ppd * dates.length} Posts`}</Btn></div>
+          <div className="sm:col-span-2"><Lbl>Dates</Lbl><DatePicker dates={dates} onChange={setDates} mode={dateMode} onModeChange={setDateMode} dateRange={dr} onDateRangeChange={setDr} /></div>
+          <div className="flex items-end"><Btn onClick={gen} disabled={loading || !plat.length || (dateMode === "dates" && !dates.length)}>{loading && <Spinner />}{loading ? "Generating..." : dateMode === "dates" ? `Generate ${ppd * dates.length} Posts` : `Generate Posts`}</Btn></div>
         </div>
         {/* Collapsible targeting options */}
         <button onClick={() => setShowMore(!showMore)} className="cursor-pointer flex items-center gap-1.5" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>
@@ -463,25 +486,28 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
 export default function Home() {
   const { dark, toggle } = useTheme();
   const [tab, setTab] = useState("calendar");
-  const [guide, setGuide] = useState(true);
-  useEffect(() => { try { if (localStorage.getItem("guide_dismissed")) setGuide(false); } catch {} }, []);
-  const dismiss = () => { setGuide(false); try { localStorage.setItem("guide_dismissed", "1"); } catch {} };
+  const [guideOpen, setGuideOpen] = useState(false);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
+      <GuideSidebar open={guideOpen} onClose={() => setGuideOpen(false)} />
       <header className="mb-8 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-2"><div style={{ width: 7, height: 7, borderRadius: 99, background: "var(--accent)", boxShadow: "0 0 10px var(--accent-border)" }} /><span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "var(--accent)" }}>Dreambound</span></div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.025em", lineHeight: 1.15 }}>Creative Pipeline</h1>
           <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 6 }}>AI-powered content briefs and compliant ad copy.</p>
         </div>
-        <button onClick={toggle} className="cursor-pointer" style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 12px", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, boxShadow: "var(--card-shadow)" }}>
-          {dark ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>}
-          {dark ? "Light" : "Dark"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setGuideOpen(true)} className="cursor-pointer" style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 12px", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, boxShadow: "var(--card-shadow)" }}>
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Guide
+          </button>
+          <button onClick={toggle} className="cursor-pointer" style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 12px", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, boxShadow: "var(--card-shadow)" }}>
+            {dark ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>}
+            {dark ? "Light" : "Dark"}
+          </button>
+        </div>
       </header>
-
-      <AnimatePresence>{guide && <Guide onDismiss={dismiss} />}</AnimatePresence>
 
       <nav className="flex gap-0.5 mb-7 p-1" style={{ background: "var(--bg-raised)", borderRadius: 12, border: "1px solid var(--border)", width: "fit-content", boxShadow: "var(--card-shadow)" }}>
         {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Ad Creatives" }].map((t) => (
