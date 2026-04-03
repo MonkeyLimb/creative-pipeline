@@ -1,7 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic();
-
 class Semaphore {
   constructor(max) {
     this.max = max;
@@ -51,7 +49,7 @@ Respond ONLY in valid JSON. No markdown, no preamble:
 }`;
 }
 
-async function generateOne(params, index) {
+async function generateOne(client, params, index) {
   await semaphore.acquire();
   try {
     const response = await client.messages.create({
@@ -90,9 +88,10 @@ export async function POST(request) {
 
     const count = Math.min(Number(num_creatives) || 5, 15);
 
+    const client = new Anthropic();
     const params = { school, program, platform, creative_type, icp, tone, archetype };
 
-    const promises = Array.from({ length: count }, (_, i) => generateOne(params, i));
+    const promises = Array.from({ length: count }, (_, i) => generateOne(client, params, i));
     const results = await Promise.all(
       promises.map((p) => p.then((r) => ({ ok: true, data: r })).catch((e) => ({ ok: false, error: e.message })))
     );

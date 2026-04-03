@@ -1,7 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic();
-
 function computeDisclaimer(school, creative_type) {
   if (creative_type === "Organic") return "";
   const lines = [];
@@ -45,6 +43,7 @@ The user has already chosen a design candidate. Execute these steps in order usi
 Respond ONLY with valid JSON, no markdown:
 {"design_id":"...","design_url":"...","folder_url":"...","folder_name":"...","status":"success","error":null}`;
 
+    const client = new Anthropic();
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 16000,

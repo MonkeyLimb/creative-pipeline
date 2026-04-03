@@ -1,7 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic();
-
 const DEGREE_SCHOOLS = ["UMA", "SNHU", "AIU", "CTU", "FSU"];
 
 function computeDisclaimer(school, creative_type) {
@@ -50,6 +48,7 @@ export async function POST(request) {
     const body = await request.json();
     const { school, program, platform, creative_type, hook, subtext, cta, canva_prompt, cloudinary_url } = body;
 
+    const client = new Anthropic();
     const disclaimer = computeDisclaimer(school, creative_type);
 
     const systemPrompt = buildSystemPrompt({
