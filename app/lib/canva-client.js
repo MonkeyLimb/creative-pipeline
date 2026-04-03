@@ -1,31 +1,12 @@
 // Canva Connect REST API client
 const CANVA_API = "https://api.canva.com/rest/v1";
 
-async function getToken() {
-  // Try refreshing first
-  const refreshToken = process.env.CANVA_REFRESH_TOKEN;
-  const clientId = process.env.CANVA_CLIENT_ID;
-  const clientSecret = process.env.CANVA_CLIENT_SECRET;
-
-  if (refreshToken && clientId && clientSecret) {
-    try {
-      const res = await fetch(`${CANVA_API}/oauth/token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
-        },
-        body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.access_token) return data.access_token;
-      }
-    } catch {}
-  }
-
+// Use the stored access token directly — it lasts 4 hours.
+// DO NOT auto-refresh: each refresh invalidates the previous refresh token,
+// and since we can't update env vars at runtime, the chain breaks immediately.
+function getToken() {
   const token = process.env.CANVA_ACCESS_TOKEN;
-  if (!token) throw new Error("CANVA_ACCESS_TOKEN is not set");
+  if (!token) throw new Error("CANVA_ACCESS_TOKEN is not set. Visit /api/canva-auth to get one.");
   return token;
 }
 
