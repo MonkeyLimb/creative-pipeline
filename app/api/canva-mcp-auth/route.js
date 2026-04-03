@@ -19,7 +19,6 @@ export async function GET() {
     code_challenge_method: "S256",
     code_challenge: codeChallenge,
     state: codeVerifier,
-    resource: MCP_RESOURCE,  // Request token scoped to MCP server
   });
 
   const authUrl = `https://www.canva.com/api/oauth/authorize?${params}`;
