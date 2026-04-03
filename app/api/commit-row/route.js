@@ -102,30 +102,55 @@ Execute in order using Canva MCP tools:
 Respond ONLY with valid JSON, no markdown:
 {"design_id":"...","design_url":"...","folder_url":"...","folder_name":"...","status":"success","error":null}`;
 
-    // Get a fresh token
-    const canvaToken = await getCanvaToken();
-
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const response = await client.beta.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 16000,
-      betas: ["mcp-client-2025-04-04"],
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: "Execute the Canva production pipeline now. Follow each step in order using the MCP tools.",
-        },
-      ],
-      mcp_servers: [
-        {
-          type: "url",
-          url: "https://mcp.canva.com/mcp",
-          name: "canva",
-          authorization_token: canvaToken,
-        },
-      ],
+    // Try with latest beta, no authorization_token (Anthropic may handle Canva auth)
+    // If that fails, try with token
+    let response;
+    try {
+      response = await client.beta.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 16000,
+        betas: ["mcp-client-2025-11-20"],
+        system: systemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: "Execute the Canva production pipeline now. Follow each step in order using the MCP tools.",
+          },
+        ],
+        mcp_servers: [
+          {
+            type: "url",
+            url: "https://mcp.canva.com/mcp",
+            name: "canva",
+          },
+        ],
+      });
+    } catch (firstErr) {
+      // If no-token fails, try with token
+      const canvaToken = await getCanvaToken();
+      response = await client.beta.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 16000,
+        betas: ["mcp-client-2025-11-20"],
+        system: systemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: "Execute the Canva production pipeline now. Follow each step in order using the MCP tools.",
+          },
+        ],
+        mcp_servers: [
+          {
+            type: "url",
+            url: "https://mcp.canva.com/mcp",
+            name: "canva",
+            authorization_token: canvaToken,
+          },
+        ],
+      });
+    }
     });
 
     // Find the last text block in the response
