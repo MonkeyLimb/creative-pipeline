@@ -1,5 +1,43 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+// Refresh the Canva access token using the refresh token
+async function getCanvaToken() {
+  const refreshToken = process.env.CANVA_REFRESH_TOKEN;
+  const clientId = process.env.CANVA_CLIENT_ID;
+  const clientSecret = process.env.CANVA_CLIENT_SECRET;
+
+  // If we have refresh credentials, always get a fresh token
+  if (refreshToken && clientId && clientSecret) {
+    try {
+      const res = await fetch("https://api.canva.com/rest/v1/oauth/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64"),
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.access_token) {
+          return data.access_token;
+        }
+      }
+    } catch (err) {
+      console.error("Token refresh failed:", err.message);
+    }
+  }
+
+  // Fallback to stored token
+  const token = process.env.CANVA_ACCESS_TOKEN;
+  if (!token) throw new Error("No CANVA_ACCESS_TOKEN and token refresh failed");
+  return token;
+}
+
 function computeDisclaimer(school, creative_type) {
   if (creative_type === "Organic") return "";
   const lines = [];
@@ -42,6 +80,9 @@ Execute in order using Canva MCP tools:
 Respond ONLY with valid JSON, no markdown:
 {"design_id":"...","design_url":"...","folder_url":"...","folder_name":"...","status":"success","error":null}`;
 
+    // Get a fresh token
+    const canvaToken = await getCanvaToken();
+
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const response = await client.beta.messages.create({
@@ -60,7 +101,7 @@ Respond ONLY with valid JSON, no markdown:
           type: "url",
           url: "https://mcp.canva.com/mcp",
           name: "canva",
-          authorization_token: process.env.CANVA_ACCESS_TOKEN,
+          authorization_token: canvaToken,
         },
       ],
     });

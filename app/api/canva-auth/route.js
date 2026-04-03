@@ -2,7 +2,7 @@ import { randomBytes, createHash } from "crypto";
 
 const CLIENT_ID = process.env.CANVA_CLIENT_ID || "OC-AZ1RKS_XeaXO";
 const REDIRECT_URI = "https://creative-pipeline-mu.vercel.app/api/canva-callback";
-const SCOPES = "design:meta:read design:content:read design:content:write folder:read folder:write asset:read asset:write";
+const SCOPES = "design:meta:read design:content:read design:content:write folder:read folder:write asset:read asset:write profile:read";
 
 export async function GET() {
   // Generate PKCE code verifier + challenge
