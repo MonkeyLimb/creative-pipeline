@@ -96,13 +96,18 @@ export async function importDesign(title, imageBase64, platform) {
   return data.job || data;
 }
 
-// Create a blank design
+// Create a design with custom dimensions
 export async function createDesign(title, platform) {
-  const presets = { instagram: "instagram_post", facebook: "facebook_post", tiktok: "tiktok_video" };
+  const dims = {
+    instagram: { width: 1080, height: 1080 },
+    facebook: { width: 940, height: 788 },
+    tiktok: { width: 1080, height: 1920 },
+  };
+  const size = dims[platform?.toLowerCase()] || dims.instagram;
   const data = await canvaFetch("/designs", {
     method: "POST",
     body: JSON.stringify({
-      design_type: { type: "preset", name: presets[platform?.toLowerCase()] || "instagram_post" },
+      design_type: { type: "custom", width: size.width, height: size.height },
       title: title || "Untitled",
     }),
   });
