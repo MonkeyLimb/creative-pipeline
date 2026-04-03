@@ -1,12 +1,37 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-// Refresh the Canva access token using the refresh token
+// Get a fresh Canva MCP token — try MCP-specific refresh first, then Connect API refresh
 async function getCanvaToken() {
+  // Try MCP-specific token refresh (from /api/canva-mcp-auth flow)
+  const mcpRefresh = process.env.CANVA_MCP_REFRESH_TOKEN;
+  const mcpClientId = process.env.CANVA_MCP_CLIENT_ID;
+  const mcpTokenEndpoint = process.env.CANVA_MCP_TOKEN_ENDPOINT;
+
+  if (mcpRefresh && mcpClientId && mcpTokenEndpoint) {
+    try {
+      const res = await fetch(mcpTokenEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: mcpRefresh,
+          client_id: mcpClientId,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.access_token) return data.access_token;
+      }
+    } catch (err) {
+      console.error("MCP token refresh failed:", err.message);
+    }
+  }
+
+  // Fallback: try Connect API refresh
   const refreshToken = process.env.CANVA_REFRESH_TOKEN;
   const clientId = process.env.CANVA_CLIENT_ID;
   const clientSecret = process.env.CANVA_CLIENT_SECRET;
 
-  // If we have refresh credentials, always get a fresh token
   if (refreshToken && clientId && clientSecret) {
     try {
       const res = await fetch("https://api.canva.com/rest/v1/oauth/token", {
@@ -20,21 +45,18 @@ async function getCanvaToken() {
           refresh_token: refreshToken,
         }),
       });
-
       if (res.ok) {
         const data = await res.json();
-        if (data.access_token) {
-          return data.access_token;
-        }
+        if (data.access_token) return data.access_token;
       }
     } catch (err) {
-      console.error("Token refresh failed:", err.message);
+      console.error("Connect API token refresh failed:", err.message);
     }
   }
 
-  // Fallback to stored token
+  // Final fallback: stored token
   const token = process.env.CANVA_ACCESS_TOKEN;
-  if (!token) throw new Error("No CANVA_ACCESS_TOKEN and token refresh failed");
+  if (!token) throw new Error("No CANVA_ACCESS_TOKEN available and all refresh attempts failed");
   return token;
 }
 
