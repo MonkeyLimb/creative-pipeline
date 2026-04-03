@@ -5,7 +5,6 @@ const REDIRECT_URI = "https://creative-pipeline-mu.vercel.app/api/canva-callback
 const SCOPES = "design:meta:read design:content:read design:content:write folder:read folder:write asset:read asset:write profile:read";
 
 export async function GET() {
-  // Generate PKCE code verifier + challenge
   const codeVerifier = randomBytes(32).toString("base64url");
   const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
 
@@ -16,10 +15,9 @@ export async function GET() {
     scope: SCOPES,
     code_challenge_method: "S256",
     code_challenge: codeChallenge,
-    state: codeVerifier, // pass verifier in state so callback can use it
+    state: codeVerifier,
   });
 
   const authUrl = `https://www.canva.com/api/oauth/authorize?${params}`;
-
   return Response.redirect(authUrl, 302);
 }
