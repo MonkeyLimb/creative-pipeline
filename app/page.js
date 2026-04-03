@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 const SP = {
+  General: ["Brand Awareness", "Platform Growth", "Community", "Partnerships", "Events"],
   UMA: ["Clinical Medical Assistant", "Healthcare Management", "Healthcare Administration", "Medical Billing and Coding", "Health and Human Services", "Medical Administrative Assistant", "Pharmacy Technician", "Health Information Technology"],
   SNHU: ["Psychology"], AIU: ["Criminal Justice"], CTU: ["Information Technology"],
   FSU: ["Music Production", "Game Development", "Cybersecurity", "Information Technology"],
@@ -14,6 +15,7 @@ const SCHOOLS = Object.keys(SP);
 const PLATFORMS = ["Instagram", "Facebook", "TikTok"];
 const SIZES = ["4:5", "1:1", "9:16", "16:9"];
 const CT = ["Paid", "Organic"];
+const FORMATS = ["Single", "Carousel"];
 const ICPS = ["Working Adult", "Career Reset", "Ambition Blocker"];
 const TONES = ["Recognition", "Belief", "Awareness"];
 const HOOKS = ["Objection Flip", "Stat/Fact", "Day in the Life", "Pain Point", "Transformation", "Curiosity"];
@@ -74,10 +76,11 @@ function Sel({ value, onChange, options }) {
 }
 
 function SPSelect({ school, program, onS, onP }) {
+  const isGeneral = school === "General";
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className={`grid gap-4 ${isGeneral ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
       <div><Lbl>School</Lbl><Sel value={school} onChange={onS} options={SCHOOLS} /></div>
-      <div><Lbl>Program</Lbl><Sel value={program} onChange={onP} options={SP[school] || []} /></div>
+      <div><Lbl>{isGeneral ? "Focus" : "Program"}</Lbl><Sel value={program} onChange={onP} options={SP[school] || []} /></div>
     </div>
   );
 }
@@ -176,8 +179,8 @@ function Guide({ onDismiss }) {
 
 // ─── Tabs ───
 function CalendarTab() {
-  const [school, setSchool] = useState("UMA");
-  const [program, setProgram] = useState(SP["UMA"][0]);
+  const [school, setSchool] = useState("General");
+  const [program, setProgram] = useState(SP["General"][0]);
   const [plat, setPlat] = useState(["Instagram"]);
   const [ct, setCt] = useState("Organic");
   const [sizes, setSizes] = useState(["4:5"]);
@@ -186,16 +189,18 @@ function CalendarTab() {
   const [hooks, setHooks] = useState(["Transformation"]);
   const [dr, setDr] = useState("1 Week");
   const [pc, setPc] = useState(5);
+  const [fmt, setFmt] = useState("Single");
   const [ctx, setCtx] = useState("");
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
   const gen = async () => {
     setLoading(true); setPosts([]);
     try {
-      const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, sizes, icps, tones, hooks, date_range: dr, post_count: pc, extra_context: ctx }) });
+      const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, format: fmt, sizes, icps, tones, hooks, date_range: dr, post_count: pc, extra_context: ctx }) });
       const d = await r.json(); if (d.error) throw new Error(d.error);
       setPosts(d.posts); toast.success(`Generated ${d.posts.length} posts`);
     } catch (e) { toast.error(e.message); } finally { setLoading(false); }
@@ -212,22 +217,32 @@ function CalendarTab() {
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
         <SPSelect school={school} program={program} onS={sc} onP={setProgram} />
-        <div><Lbl>Creative Type</Lbl><div className="flex gap-2 flex-wrap">{CT.map((t) => <Chip key={t} label={t} active={ct === t} onClick={() => setCt(t)} />)}</div></div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div><Lbl>Platforms</Lbl><div className="flex gap-2 flex-wrap">{PLATFORMS.map((p) => <MChip key={p} label={p} active={plat.includes(p)} onClick={() => tog(plat, setPlat, p)} />)}</div></div>
-          <div><Lbl>Sizes</Lbl><div className="flex gap-2 flex-wrap">{SIZES.map((s) => <MChip key={s} label={s} active={sizes.includes(s)} onClick={() => tog(sizes, setSizes, s)} />)}</div></div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div><Lbl>Type</Lbl><div className="flex gap-1.5 flex-wrap">{CT.map((t) => <Chip key={t} label={t} active={ct === t} onClick={() => setCt(t)} />)}</div></div>
+          <div><Lbl>Format</Lbl><div className="flex gap-1.5 flex-wrap">{FORMATS.map((f) => <Chip key={f} label={f} active={fmt === f} onClick={() => setFmt(f)} />)}</div></div>
+          <div><Lbl>Platforms</Lbl><div className="flex gap-1.5 flex-wrap">{PLATFORMS.map((p) => <MChip key={p} label={p} active={plat.includes(p)} onClick={() => tog(plat, setPlat, p)} />)}</div></div>
+          <div><Lbl>Sizes</Lbl><div className="flex gap-1.5 flex-wrap">{SIZES.map((s) => <MChip key={s} label={s} active={sizes.includes(s)} onClick={() => tog(sizes, setSizes, s)} />)}</div></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <div><Lbl>ICP Targets</Lbl><div className="flex gap-1.5 flex-wrap">{ICPS.map((i) => <MChip key={i} label={i} active={icps.includes(i)} onClick={() => tog(icps, setIcps, i)} />)}</div></div>
-          <div><Lbl>Tones</Lbl><div className="flex gap-1.5 flex-wrap">{TONES.map((t) => <MChip key={t} label={t} active={tones.includes(t)} onClick={() => tog(tones, setTones, t)} />)}</div></div>
-          <div><Lbl>Hooks</Lbl><div className="flex gap-1.5 flex-wrap">{HOOKS.map((h) => <MChip key={h} label={h} active={hooks.includes(h)} onClick={() => tog(hooks, setHooks, h)} />)}</div></div>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+          <div><Lbl>Date Range</Lbl><Sel value={dr} onChange={setDr} options={DR} /></div>
+          <div><Lbl>Posts</Lbl><Sel value={pc} onChange={(v) => setPc(Number(v))} options={PC} /></div>
+          <div className="sm:col-span-2 flex items-end"><Btn onClick={gen} disabled={loading || !plat.length}>{loading && <Spinner />}{loading ? "Generating..." : `Generate ${pc} Posts`}</Btn></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div><Lbl>Date Range</Lbl><div className="flex gap-2 flex-wrap">{DR.map((d) => <Chip key={d} label={d} active={dr === d} onClick={() => setDr(d)} />)}</div></div>
-          <div><Lbl>Posts</Lbl><div className="flex gap-1.5 flex-wrap">{PC.map((n) => <Chip key={n} label={`${n}`} active={pc === n} onClick={() => setPc(n)} />)}</div></div>
-        </div>
-        <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign theme, direction..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
-        <div className="flex justify-end"><Btn onClick={gen} disabled={loading || !plat.length}>{loading && <Spinner />}{loading ? "Generating..." : `Generate ${pc} Posts`}</Btn></div>
+        {/* Collapsible targeting options */}
+        <button onClick={() => setShowMore(!showMore)} className="cursor-pointer flex items-center gap-1.5" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>
+          <svg style={{ transform: showMore ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          Targeting & Context
+        </button>
+        <AnimatePresence>{showMore && (
+          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div><Lbl>ICPs</Lbl><div className="flex gap-1.5 flex-wrap">{ICPS.map((i) => <MChip key={i} label={i} active={icps.includes(i)} onClick={() => tog(icps, setIcps, i)} />)}</div></div>
+              <div><Lbl>Tones</Lbl><div className="flex gap-1.5 flex-wrap">{TONES.map((t) => <MChip key={t} label={t} active={tones.includes(t)} onClick={() => tog(tones, setTones, t)} />)}</div></div>
+              <div><Lbl>Hooks</Lbl><div className="flex gap-1.5 flex-wrap">{HOOKS.map((h) => <MChip key={h} label={h} active={hooks.includes(h)} onClick={() => tog(hooks, setHooks, h)} />)}</div></div>
+            </div>
+            <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign theme, direction..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
+          </MotionDiv>
+        )}</AnimatePresence>
       </Card>
       {posts.length > 0 && (
         <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -241,10 +256,11 @@ function CalendarTab() {
 }
 
 function PaidAdsTab() {
-  const [school, setSchool] = useState("UMA");
-  const [program, setProgram] = useState(SP["UMA"][0]);
+  const [school, setSchool] = useState("General");
+  const [program, setProgram] = useState(SP["General"][0]);
   const [plat, setPlat] = useState("Instagram");
   const [ct, setCt] = useState("Paid");
+  const [fmt, setFmt] = useState("Single");
   const [icps, setIcps] = useState(["Working Adult"]);
   const [tones, setTones] = useState(["Recognition"]);
   const [hooks, setHooks] = useState(["Objection Flip", "Transformation"]);
@@ -253,12 +269,15 @@ function PaidAdsTab() {
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
+  const isGeneral = school === "General";
   const gen = async () => {
     setLoading(true); setAds([]);
     try {
-      const r = await fetch("/api/generate-ads-csv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platform: plat, creative_type: ct, icps, tones, hooks, ad_count: ac, extra_context: ctx }) });
+      const r = await fetch("/api/generate-ads-csv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platform: plat, creative_type: ct, format: fmt, icps, tones, hooks, ad_count: ac, extra_context: ctx }) });
       const d = await r.json(); if (d.error) throw new Error(d.error);
       setAds(d.ads); toast.success(`Generated ${d.ads.length} ads`);
     } catch (e) { toast.error(e.message); } finally { setLoading(false); }
@@ -271,6 +290,8 @@ function PaidAdsTab() {
     const isDegree = DEGREE_SCHOOLS.includes(school);
     const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
     const dim = dims[plat] || "1080x1350";
+    const isCarousel = fmt === "Carousel";
+    const folderName = isGeneral ? `Dreambound - ${program} - ${plat} ${ct}` : `${school} - ${program} - ${plat} ${ct}`;
 
     let prompt = `# Dreambound Canva Design Job
 ## STEP 0: Verify Canva MCP Connection
@@ -285,32 +306,36 @@ If you DO have Canva connected, say "Canva MCP verified." and proceed to Step 1.
 ---
 
 ## STEP 1: Create Folder
-Create a Canva folder named: "${school} - ${program} - ${plat} ${ct} Ads"
+Create a Canva folder named: "${folderName}"
 Save the folder ID for organizing designs later.
 
 ---
 
 ## STEP 2: Generate Designs
 Process each ad below ONE AT A TIME. For each ad:
-1. Use generate_design with the AI Visual Prompt below. Target size: ${dim}. Make it a ${plat} ${ct.toLowerCase()} ad.
-2. Use perform_editing_operations to add the text elements:
+1. Use generate_design with the AI Visual Prompt below. Target size: ${dim}. Make it a ${plat} ${ct.toLowerCase()} ad.${isCarousel ? `
+   - This is a CAROUSEL. Generate a multi-page design (3-5 slides per ad).
+   - Slide 1: Hook Text as bold headline with striking visual.
+   - Slides 2-3: Subtext broken across slides with supporting visuals.
+   - Final slide: CTA with clear action button/text.
+   - Keep visual theme consistent across all slides.` : ""}
+2. Use perform_editing_operations to add the text elements:${isCarousel ? `
+   - Distribute text across slides as described above.` : `
    - Hook Text as the primary headline (large, bold, high contrast)
    - Subtext as supporting body copy (smaller, below headline)
-   - CTA as button or bottom banner text (clear, actionable)
+   - CTA as button or bottom banner text (clear, actionable)`}
 3. Use move_item_to_folder to put the design in the folder from Step 1.
 4. Report the design URL before moving to the next ad.
 
 COMPLIANCE RULES (CRITICAL):
-- Dreambound is the ONLY brand name. NEVER put "${school}" or any school name in the design.
+- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}
 - No employment guarantees, outcome promises, or job placement language.
 - No "guarantee", "free", "dream career", "Fast Track".
-${isDegree ? `- This is a DEGREE program: use "study" and "education" only. Never "train"/"training".` : `- This is a CERTIFICATE program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}`}
-${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for those who qualify." (exact wording)' : ""}
-${school === "AIU" || school === "CTU" ? `- ${school}: No urgency language. Include "Completion times vary according to the individual student."` : ""}
-
+${!isGeneral && isDegree ? `- This is a DEGREE program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- This is a CERTIFICATE program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values, education marketplace positioning, and aspirational messaging.` : ""}
+${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for those who qualify." (exact wording)\n' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency language. Include "Completion times vary according to the individual student."\n` : ""}
 ---
 
-## ADS TO GENERATE (${ads.length} total)
+## ADS TO GENERATE (${ads.length} total${isCarousel ? " — CAROUSEL format" : ""})
 `;
 
     ads.forEach((ad, i) => {
@@ -333,7 +358,7 @@ After all ${ads.length} designs are generated, provide a summary table:
 | Ad # | Hook Text (first 30 chars) | Design URL | Status |
 |------|---------------------------|------------|--------|
 
-Then confirm: "All ${ads.length} designs generated and organized in the '${school} - ${program} - ${plat} ${ct} Ads' folder."
+Then confirm: "All ${ads.length} designs generated and organized in the '${folderName}' folder."
 `;
 
     return prompt;
@@ -346,38 +371,58 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${schoo
     return [h, ...rows].join("\n");
   };
   const copyPrompt = () => { navigator.clipboard.writeText(buildPrompt()); setCopied(true); toast.success("Canva prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
-  const dlPrompt = () => { const b = new Blob([buildPrompt()], { type: "text/markdown" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_canva_job.md`; a.click(); URL.revokeObjectURL(u); toast.success("Prompt file downloaded"); };
   const dlCsv = () => { const b = new Blob([csv()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
   return (
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
         <SPSelect school={school} program={program} onS={sc} onP={setProgram} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div><Lbl>Platform</Lbl><div className="flex gap-2 flex-wrap">{PLATFORMS.map((p) => <Chip key={p} label={p} active={plat === p} onClick={() => setPlat(p)} />)}</div></div>
-          <div><Lbl>Creative Type</Lbl><div className="flex gap-2 flex-wrap">{CT.map((t) => <Chip key={t} label={t} active={ct === t} onClick={() => setCt(t)} />)}</div></div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div><Lbl>Platform</Lbl><div className="flex gap-1.5 flex-wrap">{PLATFORMS.map((p) => <Chip key={p} label={p} active={plat === p} onClick={() => setPlat(p)} />)}</div></div>
+          <div><Lbl>Type</Lbl><div className="flex gap-1.5 flex-wrap">{CT.map((t) => <Chip key={t} label={t} active={ct === t} onClick={() => setCt(t)} />)}</div></div>
+          <div><Lbl>Format</Lbl><div className="flex gap-1.5 flex-wrap">{FORMATS.map((f) => <Chip key={f} label={f} active={fmt === f} onClick={() => setFmt(f)} />)}</div></div>
+          <div><Lbl>Ads</Lbl><Sel value={ac} onChange={(v) => setAc(Number(v))} options={AC} /></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <div><Lbl>ICPs</Lbl><div className="flex gap-1.5 flex-wrap">{ICPS.map((i) => <MChip key={i} label={i} active={icps.includes(i)} onClick={() => tog(icps, setIcps, i)} />)}</div></div>
-          <div><Lbl>Tones</Lbl><div className="flex gap-1.5 flex-wrap">{TONES.map((t) => <MChip key={t} label={t} active={tones.includes(t)} onClick={() => tog(tones, setTones, t)} />)}</div></div>
-          <div><Lbl>Hooks</Lbl><div className="flex gap-1.5 flex-wrap">{HOOKS.map((h) => <MChip key={h} label={h} active={hooks.includes(h)} onClick={() => tog(hooks, setHooks, h)} />)}</div></div>
-        </div>
-        <div><Lbl>Number of Ads</Lbl><div className="flex gap-1.5 flex-wrap">{AC.map((n) => <Chip key={n} label={`${n}`} active={ac === n} onClick={() => setAc(n)} />)}</div></div>
-        <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign angle, offers..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
+        {/* Collapsible targeting options */}
+        <button onClick={() => setShowMore(!showMore)} className="cursor-pointer flex items-center gap-1.5" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>
+          <svg style={{ transform: showMore ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          Targeting & Context
+        </button>
+        <AnimatePresence>{showMore && (
+          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div><Lbl>ICPs</Lbl><div className="flex gap-1.5 flex-wrap">{ICPS.map((i) => <MChip key={i} label={i} active={icps.includes(i)} onClick={() => tog(icps, setIcps, i)} />)}</div></div>
+              <div><Lbl>Tones</Lbl><div className="flex gap-1.5 flex-wrap">{TONES.map((t) => <MChip key={t} label={t} active={tones.includes(t)} onClick={() => tog(tones, setTones, t)} />)}</div></div>
+              <div><Lbl>Hooks</Lbl><div className="flex gap-1.5 flex-wrap">{HOOKS.map((h) => <MChip key={h} label={h} active={hooks.includes(h)} onClick={() => tog(hooks, setHooks, h)} />)}</div></div>
+            </div>
+            <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign angle, offers..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
+          </MotionDiv>
+        )}</AnimatePresence>
         <div className="flex justify-end"><Btn onClick={gen} disabled={loading}>{loading && <Spinner />}{loading ? "Generating..." : `Generate ${ac} Ads`}</Btn></div>
       </Card>
       {ads.length > 0 && (
         <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5"><span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Ad Creatives</span><Badge color="orange">{ads.length}</Badge></div>
+            <div className="flex items-center gap-2.5">
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Ad Creatives</span>
+              <Badge color="orange">{ads.length}</Badge>
+              {fmt === "Carousel" && <Badge color="violet">Carousel</Badge>}
+            </div>
             <div className="flex gap-2">
-              <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Claude Chat"}</button>
-              <Btn2 onClick={dlPrompt} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download .md</Btn2>
+              <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Canva"}</button>
               <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>CSV</Btn2>
             </div>
           </div>
+          {/* Collapsible prompt preview */}
           <Card className="overflow-hidden">
-            <div style={{ padding: 16, overflowX: "auto", background: "var(--bg-inset)", borderRadius: "15px 15px 0 0", maxHeight: 300, overflow: "auto" }}><pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{buildPrompt()}</pre></div>
-            <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-subtle)", background: "var(--accent-bg)" }}><p style={{ fontSize: 11, color: "var(--accent)" }}>Copy this and paste into Claude Chat (claude.ai) with Canva MCP enabled. It will verify Canva is connected, then generate all {ads.length} designs automatically.</p></div>
+            <button onClick={() => setShowPreview(!showPreview)} className="cursor-pointer w-full flex items-center justify-between" style={{ padding: "10px 16px", background: "var(--accent-bg)", border: "none" }}>
+              <p style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>Paste into Claude Chat with Canva MCP to generate {ads.length} designs{fmt === "Carousel" ? " (carousel)" : ""}</p>
+              <svg style={{ color: "var(--accent)", transform: showPreview ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </button>
+            <AnimatePresence>{showPreview && (
+              <MotionDiv initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                <div style={{ padding: 16, background: "var(--bg-inset)", maxHeight: 300, overflow: "auto" }}><pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{buildPrompt()}</pre></div>
+              </MotionDiv>
+            )}</AnimatePresence>
           </Card>
           <div className="space-y-2.5">{ads.map((ad, i) => <AdCard key={i} ad={ad} i={i} />)}</div>
         </MotionDiv>
@@ -411,7 +456,7 @@ export default function Home() {
       <AnimatePresence>{guide && <Guide onDismiss={dismiss} />}</AnimatePresence>
 
       <nav className="flex gap-0.5 mb-7 p-1" style={{ background: "var(--bg-raised)", borderRadius: 12, border: "1px solid var(--border)", width: "fit-content", boxShadow: "var(--card-shadow)" }}>
-        {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Paid Ads CSV" }].map((t) => (
+        {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Ad Creatives" }].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className="cursor-pointer" style={{ padding: "8px 18px", borderRadius: 9, fontSize: 13, fontWeight: 600, border: "none", transition: "all 0.15s", ...(tab === t.id ? { background: "var(--bg-inset)", color: "var(--text)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { background: "transparent", color: "var(--text-tertiary)" }) }}>{t.label}</button>
         ))}
       </nav>

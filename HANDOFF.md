@@ -13,17 +13,26 @@ Internal web app for **Dreambound** (education marketplace) that generates compl
 ## Current State (What Works)
 
 ### Tab 1: Content Calendar Builder
-- Tap-to-select UI: school, program, platform, sizes, ICPs, tones, hook archetypes, date range, post count
-- Claude API (`claude-sonnet-4-6`) generates compliant content briefs with full compliance rules per school
-- Expandable post cards with all brief fields
-- CSV export that opens in Google Sheets (structured brief format + flat table)
+- School/program selector with **"General" option** for non-school Dreambound brand content
+- Compact top row: type (Paid/Organic), format (Single/Carousel), platforms, sizes
+- Date range and post count as dropdowns (not chip rows)
+- Collapsible "Targeting & Context" section (ICPs, tones, hooks, extra context) — hidden by default to reduce clutter
+- Claude API (`claude-sonnet-4-6`) generates compliant content briefs
+- Expandable post cards, CSV export
 
-### Tab 2: Paid Ads CSV Generator
-- Same selector UI for school/program/platform/creative type
-- Claude API generates compliant ad copy with hook text, subtext, CTA, AI visual prompts
-- CSV preview with "Copy for Claude AI" button (copies to clipboard)
-- Download CSV button
-- The CSV is designed to be pasted into claude.ai chat where Canva MCP generates the actual designs
+### Tab 2: Ad Creatives
+- School/program selector with **"General" option** for brand-level content
+- Compact selector row: platform, type (Paid/Organic), format (**Single/Carousel**), ad count dropdown
+- Collapsible "Targeting & Context" section
+- **"Copy for Canva" button** — generates a self-executing prompt for Claude Chat that:
+  - Verifies Canva MCP is connected
+  - Creates organized Canva folder
+  - Generates designs per ad with correct platform dimensions
+  - Handles carousel format (multi-slide with distributed text)
+  - Embeds compliance rules
+  - Returns summary table with design URLs
+- CSV download for spreadsheet use
+- Collapsible prompt preview
 
 ### UI/UX
 - Light/dark mode toggle (localStorage persisted, system preference detected)
@@ -70,6 +79,7 @@ Programs are filtered by school in the UI:
 
 | School | Programs |
 |--------|----------|
+| General | Brand Awareness, Platform Growth, Community, Partnerships, Events |
 | UMA | Clinical Medical Assistant, Healthcare Management, Healthcare Administration, Medical Billing and Coding, Health and Human Services, Medical Administrative Assistant, Pharmacy Technician, Health Information Technology |
 | SNHU | Psychology |
 | AIU | Criminal Justice |
