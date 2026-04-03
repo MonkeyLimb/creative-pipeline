@@ -617,8 +617,7 @@ export default function Home() {
           {allDone && (
             <div className="bg-emerald-900/20 border border-emerald-800/40 rounded-xl p-4">
               <p className="text-sm text-emerald-400">
-                Pipeline complete. {committedCount} of {creatives.length} designs created in Canva.
-                Open each design link to add your copy text.
+                Pipeline complete. {committedCount} of {creatives.length} designs created.
               </p>
             </div>
           )}
