@@ -88,7 +88,7 @@ export async function POST(request) {
 
     const count = Math.min(Number(num_creatives) || 5, 15);
 
-    const client = new Anthropic();
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const params = { school, program, platform, creative_type, icp, tone, archetype };
 
     const promises = Array.from({ length: count }, (_, i) => generateOne(client, params, i));

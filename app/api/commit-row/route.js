@@ -48,7 +48,7 @@ export async function POST(request) {
     const body = await request.json();
     const { school, program, platform, creative_type, hook, subtext, cta, canva_prompt, cloudinary_url } = body;
 
-    const client = new Anthropic();
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const disclaimer = computeDisclaimer(school, creative_type);
 
     const systemPrompt = buildSystemPrompt({

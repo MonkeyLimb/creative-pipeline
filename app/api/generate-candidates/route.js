@@ -36,7 +36,7 @@ Execute these steps using Canva MCP tools:
 Respond ONLY with valid JSON, no markdown:
 {"job_id":"...","candidates":[{"index":0,"candidate_id":"...","thumbnail_url":"..."},...],"asset_id":"...or null","error":null}`;
 
-    const client = new Anthropic();
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 16000,
