@@ -15,13 +15,6 @@ function computeDisclaimer(school, creative_type) {
 }
 
 export async function POST(request) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return Response.json(
-      { job_id: null, candidates: [], asset_id: null, error: `ANTHROPIC_API_KEY is not set. Env keys available: ${Object.keys(process.env).filter(k => k.includes('ANTHROPIC') || k.includes('API')).join(', ') || 'none matching'}` },
-      { status: 500 }
-    );
-  }
   try {
     const body = await request.json();
     const { school, program, platform, creative_type, hook, subtext, cta, canva_prompt, cloudinary_url } = body;
