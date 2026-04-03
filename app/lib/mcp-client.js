@@ -3,6 +3,12 @@
 
 const MCP_URL = "https://mcp.canva.com/mcp";
 
+function getCanvaToken() {
+  const token = process.env.CANVA_ACCESS_TOKEN;
+  if (!token) throw new Error("CANVA_ACCESS_TOKEN is not set. Add it to your Vercel Environment Variables.");
+  return token;
+}
+
 async function mcpRequest(method, params, sessionId) {
   const body = {
     jsonrpc: "2.0",
@@ -11,9 +17,11 @@ async function mcpRequest(method, params, sessionId) {
     ...(params ? { params } : {}),
   };
 
+  const token = getCanvaToken();
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/json, text/event-stream",
+    Authorization: `Bearer ${token}`,
   };
   if (sessionId) {
     headers["Mcp-Session-Id"] = sessionId;
@@ -26,11 +34,9 @@ async function mcpRequest(method, params, sessionId) {
   });
 
   const newSessionId = res.headers.get("Mcp-Session-Id") || sessionId;
-
   const contentType = res.headers.get("content-type") || "";
 
   if (contentType.includes("text/event-stream")) {
-    // SSE response — parse events to get the JSON-RPC result
     const text = await res.text();
     const lines = text.split("\n");
     let lastData = null;
@@ -56,12 +62,17 @@ async function mcpRequest(method, params, sessionId) {
 }
 
 export async function createMCPSession() {
-  // Initialize
+  const token = getCanvaToken();
+
   const init = await mcpRequest("initialize", {
     protocolVersion: "2025-03-26",
     capabilities: {},
     clientInfo: { name: "dreambound-pipeline", version: "1.0.0" },
   }, null);
+
+  if (init.error) {
+    throw new Error(`MCP initialize error: ${JSON.stringify(init.error)}`);
+  }
 
   const sessionId = init.sessionId;
 
@@ -70,6 +81,7 @@ export async function createMCPSession() {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
       "Mcp-Session-Id": sessionId,
     },
     body: JSON.stringify({
@@ -122,13 +134,11 @@ export async function runAgenticLoop({ client, model, maxTokens, system, userMes
       messages,
     });
 
-    // Collect all content blocks
     const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
     const textBlocks = response.content.filter((b) => b.type === "text");
 
-    // If no tool calls, we're done
+    // If no tool calls or end_turn, we're done
     if (toolUseBlocks.length === 0 || response.stop_reason === "end_turn") {
-      // Return the last text block
       const finalText = textBlocks.length > 0 ? textBlocks[textBlocks.length - 1].text : null;
       return finalText;
     }
@@ -138,7 +148,6 @@ export async function runAgenticLoop({ client, model, maxTokens, system, userMes
     for (const toolUse of toolUseBlocks) {
       try {
         const mcpResult = await callTool(sessionId, toolUse.name, toolUse.input);
-        // MCP returns { content: [...] } — extract text
         const resultText = (mcpResult.content || [])
           .map((c) => (c.type === "text" ? c.text : JSON.stringify(c)))
           .join("\n");
@@ -157,7 +166,6 @@ export async function runAgenticLoop({ client, model, maxTokens, system, userMes
       }
     }
 
-    // Add assistant response and tool results to messages
     messages.push({ role: "assistant", content: response.content });
     messages.push({ role: "user", content: toolResults });
   }
