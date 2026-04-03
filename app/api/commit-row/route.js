@@ -104,8 +104,7 @@ Respond ONLY with valid JSON, no markdown:
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    // Try with latest beta, no authorization_token (Anthropic may handle Canva auth)
-    // If that fails, try with token
+    // Try without authorization_token first (Anthropic may handle Canva auth natively)
     let response;
     try {
       response = await client.beta.messages.create({
@@ -124,6 +123,12 @@ Respond ONLY with valid JSON, no markdown:
             type: "url",
             url: "https://mcp.canva.com/mcp",
             name: "canva",
+          },
+        ],
+        tools: [
+          {
+            type: "mcp_toolset",
+            mcp_server_name: "canva",
           },
         ],
       });
@@ -147,6 +152,12 @@ Respond ONLY with valid JSON, no markdown:
             url: "https://mcp.canva.com/mcp",
             name: "canva",
             authorization_token: canvaToken,
+          },
+        ],
+        tools: [
+          {
+            type: "mcp_toolset",
+            mcp_server_name: "canva",
           },
         ],
       });
