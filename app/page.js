@@ -253,68 +253,101 @@ function PaidAdsTab() {
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [agentJob, setAgentJob] = useState(null); // { id, status, total, completed, failed, rows, mock }
-  const [sending, setSending] = useState(false);
-  const pollRef = { current: null };
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
   const gen = async () => {
-    setLoading(true); setAds([]); setAgentJob(null);
+    setLoading(true); setAds([]);
     try {
       const r = await fetch("/api/generate-ads-csv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platform: plat, creative_type: ct, icps, tones, hooks, ad_count: ac, extra_context: ctx }) });
       const d = await r.json(); if (d.error) throw new Error(d.error);
       setAds(d.ads); toast.success(`Generated ${d.ads.length} ads`);
     } catch (e) { toast.error(e.message); } finally { setLoading(false); }
   };
+
+  // ─── Build the smart prompt file for Claude Chat + Canva MCP ───
+  const DEGREE_SCHOOLS = ["UMA", "SNHU", "AIU", "CTU", "FSU"];
+  const buildPrompt = () => {
+    if (!ads.length) return "";
+    const isDegree = DEGREE_SCHOOLS.includes(school);
+    const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
+    const dim = dims[plat] || "1080x1350";
+
+    let prompt = `# Dreambound Canva Design Job
+## STEP 0: Verify Canva MCP Connection
+Before doing anything else, confirm you have access to Canva MCP tools. Try listing your available tools and verify you can see: generate_design, perform_editing_operations, create_folder, move_item_to_folder, and get_design.
+
+If you do NOT have Canva connected:
+- Tell me "Canva MCP is not connected. Please enable it in your MCP settings first."
+- Stop here. Do not proceed.
+
+If you DO have Canva connected, say "Canva MCP verified." and proceed to Step 1.
+
+---
+
+## STEP 1: Create Folder
+Create a Canva folder named: "${school} - ${program} - ${plat} ${ct} Ads"
+Save the folder ID for organizing designs later.
+
+---
+
+## STEP 2: Generate Designs
+Process each ad below ONE AT A TIME. For each ad:
+1. Use generate_design with the AI Visual Prompt below. Target size: ${dim}. Make it a ${plat} ${ct.toLowerCase()} ad.
+2. Use perform_editing_operations to add the text elements:
+   - Hook Text as the primary headline (large, bold, high contrast)
+   - Subtext as supporting body copy (smaller, below headline)
+   - CTA as button or bottom banner text (clear, actionable)
+3. Use move_item_to_folder to put the design in the folder from Step 1.
+4. Report the design URL before moving to the next ad.
+
+COMPLIANCE RULES (CRITICAL):
+- Dreambound is the ONLY brand name. NEVER put "${school}" or any school name in the design.
+- No employment guarantees, outcome promises, or job placement language.
+- No "guarantee", "free", "dream career", "Fast Track".
+${isDegree ? `- This is a DEGREE program: use "study" and "education" only. Never "train"/"training".` : `- This is a CERTIFICATE program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}`}
+${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for those who qualify." (exact wording)' : ""}
+${school === "AIU" || school === "CTU" ? `- ${school}: No urgency language. Include "Completion times vary according to the individual student."` : ""}
+
+---
+
+## ADS TO GENERATE (${ads.length} total)
+`;
+
+    ads.forEach((ad, i) => {
+      prompt += `
+### Ad ${i + 1} of ${ads.length}
+- **Hook Format:** ${ad.hook_format}
+- **Messaging Archetype:** ${ad.messaging_archetype}
+- **Hook Text:** ${ad.hook_text}
+- **Subtext:** ${ad.subtext}
+- **CTA:** ${ad.cta}
+- **AI Visual Prompt:** ${ad.ai_visual_prompt}
+`;
+    });
+
+    prompt += `
+---
+
+## STEP 3: Summary
+After all ${ads.length} designs are generated, provide a summary table:
+| Ad # | Hook Text (first 30 chars) | Design URL | Status |
+|------|---------------------------|------------|--------|
+
+Then confirm: "All ${ads.length} designs generated and organized in the '${school} - ${program} - ${plat} ${ct} Ads' folder."
+`;
+
+    return prompt;
+  };
+
   const csv = () => {
     if (!ads.length) return "";
     const h = "Program,Hook Format,Messaging Archetype,Avatar Type,Offer Angle,Hook Text,Subtext,CTA,AI Visual Prompt";
     const rows = ads.map((a) => [program, a.hook_format, a.messaging_archetype, a.avatar_type, a.offer_angle, a.hook_text, a.subtext, a.cta, a.ai_visual_prompt].map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(","));
     return [h, ...rows].join("\n");
   };
-  const copy = () => { navigator.clipboard.writeText(csv()); setCopied(true); toast.success("CSV copied to clipboard"); setTimeout(() => setCopied(false), 2000); };
-  const dl = () => { const b = new Blob([csv()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
-
-  // ─── Send to Agent ───
-  const sendToAgent = async () => {
-    setSending(true);
-    try {
-      const payload = {
-        school, program, platform: plat, creative_type: ct,
-        rows: ads.map((a) => ({
-          hook_text: a.hook_text, subtext: a.subtext, cta: a.cta,
-          ai_visual_prompt: a.ai_visual_prompt, hook_format: a.hook_format,
-          messaging_archetype: a.messaging_archetype,
-        })),
-      };
-      const r = await fetch("/api/agent/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const d = await r.json();
-      if (d.error) throw new Error(d.error);
-      setAgentJob(d);
-      toast.success(`Job created: ${d.id}${d.mock ? " (mock)" : ""}`);
-      // Start polling
-      startPolling(d.id);
-    } catch (e) { toast.error(`Agent error: ${e.message}`); } finally { setSending(false); }
-  };
-
-  const startPolling = (jobId) => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
-      try {
-        const r = await fetch(`/api/agent/jobs/${jobId}`);
-        const d = await r.json();
-        if (d.error) { clearInterval(pollRef.current); return; }
-        setAgentJob(d);
-        if (d.status === "completed" || d.status === "failed") {
-          clearInterval(pollRef.current);
-          toast.success(d.status === "completed" ? `All ${d.completed} designs ready` : `Job finished with ${d.failed} failures`);
-        }
-      } catch { /* keep polling */ }
-    }, 2000);
-  };
-
-  // Cleanup polling on unmount
-  useEffect(() => { return () => { if (pollRef.current) clearInterval(pollRef.current); }; }, []);
+  const copyPrompt = () => { navigator.clipboard.writeText(buildPrompt()); setCopied(true); toast.success("Canva prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
+  const dlPrompt = () => { const b = new Blob([buildPrompt()], { type: "text/markdown" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_canva_job.md`; a.click(); URL.revokeObjectURL(u); toast.success("Prompt file downloaded"); };
+  const dlCsv = () => { const b = new Blob([csv()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
   return (
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
@@ -337,56 +370,15 @@ function PaidAdsTab() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5"><span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Ad Creatives</span><Badge color="orange">{ads.length}</Badge></div>
             <div className="flex gap-2">
-              <button onClick={sendToAgent} disabled={sending || (agentJob && agentJob.status === "running")} className="disabled:opacity-40 cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}>{sending ? <Spinner /> : <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>}{sending ? "Sending..." : "Send to Agent"}</button>
-              <Btn2 onClick={copy} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>{copied ? "Copied!" : "Copy for Claude AI"}</Btn2>
-              <Btn2 onClick={dl}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download</Btn2>
+              <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Claude Chat"}</button>
+              <Btn2 onClick={dlPrompt} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download .md</Btn2>
+              <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>CSV</Btn2>
             </div>
           </div>
           <Card className="overflow-hidden">
-            <div style={{ padding: 16, overflowX: "auto", background: "var(--bg-inset)", borderRadius: "15px 15px 0 0" }}><pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre", lineHeight: 1.6 }}>{csv()}</pre></div>
-            <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-subtle)", background: "var(--violet-bg)" }}><p style={{ fontSize: 11, color: "var(--violet)" }}>Paste this CSV into Claude AI chat to generate Canva designs with AI visuals.</p></div>
+            <div style={{ padding: 16, overflowX: "auto", background: "var(--bg-inset)", borderRadius: "15px 15px 0 0", maxHeight: 300, overflow: "auto" }}><pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{buildPrompt()}</pre></div>
+            <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-subtle)", background: "var(--accent-bg)" }}><p style={{ fontSize: 11, color: "var(--accent)" }}>Copy this and paste into Claude Chat (claude.ai) with Canva MCP enabled. It will verify Canva is connected, then generate all {ads.length} designs automatically.</p></div>
           </Card>
-          {agentJob && (
-            <MotionDiv initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="overflow-hidden">
-                <div style={{ padding: "16px 20px" }}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Agent Job</span>
-                      <Badge color={agentJob.status === "completed" ? "green" : agentJob.status === "failed" ? "default" : "orange"}>
-                        {agentJob.status}
-                      </Badge>
-                      {agentJob.mock && <Badge>mock</Badge>}
-                    </div>
-                    <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--text-tertiary)" }}>{agentJob.id}</span>
-                  </div>
-                  {/* Progress bar */}
-                  <div style={{ height: 6, borderRadius: 3, background: "var(--bg-inset)", overflow: "hidden", marginBottom: 12 }}>
-                    <div style={{ height: "100%", borderRadius: 3, background: agentJob.failed > 0 ? "var(--text-tertiary)" : "var(--accent)", width: `${agentJob.total > 0 ? ((agentJob.completed + agentJob.failed) / agentJob.total) * 100 : 0}%`, transition: "width 0.5s ease" }} />
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 10 }}>
-                    {agentJob.completed}/{agentJob.total} completed{agentJob.failed > 0 ? ` · ${agentJob.failed} failed` : ""}
-                  </div>
-                  {/* Per-row status */}
-                  {agentJob.rows && (
-                    <div className="space-y-1.5">
-                      {agentJob.rows.map((row) => (
-                        <div key={row.index} className="flex items-center gap-2" style={{ fontSize: 12 }}>
-                          <span style={{ width: 18, textAlign: "center", fontFamily: "monospace", color: "var(--text-tertiary)", fontSize: 10 }}>{row.index + 1}</span>
-                          <span style={{ width: 8, height: 8, borderRadius: 99, flexShrink: 0, background: row.status === "completed" ? "var(--green)" : row.status === "running" ? "var(--accent)" : row.status === "failed" ? "#ef4444" : "var(--border)" }} className={row.status === "running" ? "spinner" : ""} />
-                          <span style={{ color: row.status === "completed" ? "var(--green)" : row.status === "failed" ? "#ef4444" : "var(--text-tertiary)", fontWeight: 500 }}>{row.status}</span>
-                          {row.design_url && (
-                            <a href={row.design_url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline", fontSize: 11, marginLeft: "auto" }}>Open in Canva</a>
-                          )}
-                          {row.error && <span style={{ color: "#ef4444", fontSize: 10, marginLeft: "auto" }}>{row.error}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </MotionDiv>
-          )}
           <div className="space-y-2.5">{ads.map((ad, i) => <AdCard key={i} ad={ad} i={i} />)}</div>
         </MotionDiv>
       )}

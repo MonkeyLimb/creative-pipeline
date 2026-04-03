@@ -122,91 +122,39 @@ Canva's MCP server uses its own OAuth with interactive browser login. No static 
 
 ---
 
-## Next Step: "Send to Agent" Flow
+## Current Workflow: Smart Prompt Handoff to Claude Chat
 
-### The Plan
-Add a "Send to Agent" button to the Paid Ads tab that sends generated ad rows to a backend agent capable of running Canva MCP. The web app polls for job status and displays design URLs when complete.
+### Why Not Full Automation?
+After exhaustive testing, Canva MCP requires interactive browser OAuth. No programmatic API, VPS agent, or desktop app (Cowork, Claude Code CLI) exposes an HTTP endpoint for a web app to call. The automation ceiling is Canva's OAuth wall.
 
-### Architecture
-```
-Web App (Vercel)
-  → POST /api/agent/jobs (proxy)
-    → AGENT_BASE_URL /v1/jobs (external agent with Canva MCP)
-  ← Job ID
+### What Was Built Instead
+The "Copy for Claude Chat" button generates a **self-executing prompt file** — not just raw CSV data, but a complete set of instructions that tells Claude exactly what to do when pasted into claude.ai with Canva MCP enabled.
 
-  → GET /api/agent/jobs/:id (poll)
-    → AGENT_BASE_URL /v1/jobs/:id
-  ← Status + design URLs per row
-```
+### The Prompt File Includes:
+1. **Step 0: Canva MCP verification** — Claude checks if Canva tools are available before starting. If not connected, it stops and tells the user to enable Canva MCP first.
+2. **Step 1: Folder creation** — Creates an organized Canva folder named `{School} - {Program} - {Platform} {Type} Ads`
+3. **Step 2: Per-ad design generation** — For each ad row:
+   - `generate_design` with the AI visual prompt and correct platform dimensions
+   - `perform_editing_operations` to add hook text, subtext, and CTA
+   - `move_item_to_folder` to organize into the created folder
+   - Reports design URL before moving to next ad
+4. **Compliance rules embedded** — School-specific rules (degree vs certificate language, financial aid wording, urgency restrictions) are baked into the prompt so Claude enforces them during design generation
+5. **Step 3: Summary table** — After all designs, outputs a table of all design URLs
 
-### What Was Built
+### User Workflow:
+1. Generate ads in the web app (select school, program, platform, etc.)
+2. Click "Copy for Claude Chat" (orange button) — copies the smart prompt
+3. Open claude.ai with Canva MCP enabled
+4. Paste — Claude verifies Canva, then generates all designs automatically
+5. Get back a summary table with all Canva design URLs
 
-**Web app side (in this repo):**
-1. `POST /api/agent/jobs` — accepts ad rows, proxies to `AGENT_BASE_URL/v1/jobs` if set, otherwise uses mock responses
-2. `GET /api/agent/jobs/[id]` — polls agent for job status (proxies or mock)
-3. "Send to Agent" button in Paid Ads UI (orange accent, lightning bolt icon)
-4. Job status panel with progress bar, per-row status dots, and "Open in Canva" links
-5. Mock fallback: when `AGENT_BASE_URL` is not set, simulates rows completing every 3s with fake Canva URLs
+### UI Buttons:
+- **Copy for Claude Chat** (orange, primary) — copies the full smart prompt with instructions + compliance rules + all ad data
+- **Download .md** (violet) — downloads the prompt as a markdown file (for archiving or sharing)
+- **CSV** (green) — downloads raw CSV data only (for spreadsheet use)
 
-**Agent backend (`agent/` directory):**
-- Express server (`agent/server.js`) that runs on port 4100
-- Accepts `POST /v1/jobs` with ad row payloads, returns job ID
-- Processes rows sequentially by shelling out to `claude` CLI with `--print` flag
-- Uses `--allowedTools` to scope to Canva MCP tools only (generate_design, perform_editing_operations, etc.)
-- Extracts design URLs from Claude's output (JSON or raw text parsing)
-- `GET /v1/jobs/:id` returns live status with per-row progress
-- `GET /v1/health` for health checks
-
-**To deploy the agent backend:**
-1. On a machine with `claude` CLI installed and Canva MCP configured:
-   ```bash
-   cd agent && npm install && npm start
-   ```
-2. Complete Canva OAuth once in a Claude Code session on that machine (browser popup)
-3. Set `AGENT_BASE_URL=http://your-machine:4100` in Vercel environment variables
-4. The web app will proxy all agent requests through to the backend
-
-**Environment variables for the agent server:**
-- `PORT` — server port (default: 4100)
-- `CLAUDE_PATH` — path to claude CLI binary (default: "claude")
-- `AGENT_WORK_DIR` — working directory for claude CLI spawns (default: ./workspace)
-
-### Job Payload Shape
-```json
-// POST /v1/jobs
-{
-  "school": "SNHU",
-  "program": "Psychology",
-  "platform": "Instagram",
-  "creative_type": "Paid",
-  "rows": [
-    {
-      "hook_text": "Too busy for traditional college?",
-      "subtext": "SNHU's Psych degree is 100% online.",
-      "cta": "Study on your schedule. Apply now.",
-      "ai_visual_prompt": "Split screen showing a parent...",
-      "hook_format": "objection flip",
-      "messaging_archetype": "Hope"
-    }
-  ]
-}
-
-// GET /v1/jobs/:id response
-{
-  "id": "job_abc123",
-  "status": "running",  // pending | running | completed | failed
-  "total": 5,
-  "completed": 2,
-  "failed": 0,
-  "rows": [
-    { "index": 0, "status": "completed", "design_url": "https://canva.com/design/...", "folder_url": "..." },
-    { "index": 1, "status": "completed", "design_url": "https://canva.com/design/...", "folder_url": "..." },
-    { "index": 2, "status": "running", "design_url": null, "folder_url": null },
-    { "index": 3, "status": "pending", "design_url": null, "folder_url": null },
-    { "index": 4, "status": "pending", "design_url": null, "folder_url": null }
-  ]
-}
-```
+### Legacy: Agent Backend (Still in Repo)
+The `agent/` directory contains an Express server that was built for a programmatic approach (shelling out to `claude` CLI). It's preserved in case a future Canva API update enables programmatic OAuth, but is **not currently used** by the web app. The `AGENT_BASE_URL` env var and proxy routes (`/api/agent/jobs`) are still functional but unused.
 
 ---
 
@@ -219,7 +167,7 @@ Web App (Vercel)
 | `CANVA_REFRESH_TOKEN` | Token refresh (DO NOT auto-refresh — single-use, breaks chain) | Likely revoked |
 | `CANVA_CLIENT_ID` | Canva OAuth app | OC-AZ1RKS_XeaXO |
 | `CANVA_CLIENT_SECRET` | Canva OAuth app | Set in Vercel (not in code) |
-| `AGENT_BASE_URL` | Agent backend URL (e.g. http://your-vps:4100) — if unset, mock responses used | Not set yet |
+| `AGENT_BASE_URL` | Legacy: agent backend URL (unused — smart prompt approach replaced this) | Not set |
 
 **Important:** The canva-client.js `getToken()` function must NOT auto-refresh. Each refresh_token is single-use — refreshing on row 1 invalidates the token for row 2. Just use the stored access token directly.
 
