@@ -60,6 +60,7 @@ Respond ONLY with valid JSON, no markdown:
           type: "url",
           url: "https://mcp.canva.com/mcp",
           name: "canva",
+          authorization_token: process.env.CANVA_ACCESS_TOKEN,
         },
       ],
     });
