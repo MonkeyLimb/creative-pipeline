@@ -1,16 +1,4 @@
-import {
-  uploadAssetFromUrl,
-  generateDesign,
-  createDesignFromCandidate,
-  startEditingTransaction,
-  getDesignPages,
-  performEditingOperations,
-  commitEditingTransaction,
-  searchFolders,
-  createFolder,
-  moveItemToFolder,
-  getDesign,
-} from "../../lib/canva-client.js";
+import Anthropic from "@anthropic-ai/sdk";
 
 function computeDisclaimer(school, creative_type) {
   if (creative_type === "Organic") return "";
@@ -33,98 +21,75 @@ export async function POST(request) {
 
     const disclaimer = computeDisclaimer(school, creative_type);
 
-    // Step 1: Upload asset if needed
-    let assetIds = [];
-    if (cloudinary_url && cloudinary_url.trim()) {
-      try {
-        const assetId = await uploadAssetFromUrl(cloudinary_url);
-        if (assetId) assetIds.push(assetId);
-      } catch (err) {
-        console.error("Asset upload failed:", err.message);
-      }
-    }
+    const systemPrompt = `You are the Canva production assistant for Dreambound.
+Program: ${program} | Platform: ${platform} | Creative type: ${creative_type}
+Hook: ${hook} | Subtext: ${subtext} | CTA: ${cta}
+Canva prompt: ${canva_prompt}
+Cloudinary URL: ${cloudinary_url || "none"}
+Disclaimer: ${disclaimer || "none"}
 
-    // Step 2: Generate design
-    const { job_id, candidates } = await generateDesign({
-      designType: "instagram_post",
-      query: canva_prompt || "Instagram ad with bold text",
-      assetIds: assetIds.length > 0 ? assetIds : undefined,
+Execute in order using Canva MCP tools:
+1. If Cloudinary URL is present: call upload-asset-from-url. Get asset_id.
+2. Call generate-design, design_type "instagram_post", query = canva_prompt. Pass asset_ids if step 1 ran. Take candidate at index 0. Get job_id and candidate_id.
+3. Call create-design-from-candidate with job_id and candidate_id.
+4. Call start-editing-transaction with design_id.
+5. Call get-design-pages.
+6. Call perform-editing-operations: hook as largest dominant text, subtext below it, CTA at bottom, disclaimer as small footer text. Remove any school names, employment language, fake URLs, fake dates.
+7. Call commit-editing-transaction.
+8. Call search-folders for "${program}". If no result: call create-folder named "${program} — ${creative_type} — ${platform}".
+9. Call move-item-to-folder with design_id and folder_id.
+
+Respond ONLY with valid JSON, no markdown:
+{"design_id":"...","design_url":"...","folder_url":"...","folder_name":"...","status":"success","error":null}`;
+
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const response = await client.beta.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 16000,
+      betas: ["mcp-client-2025-04-04"],
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: "Execute the Canva production pipeline now. Follow each step in order using the MCP tools.",
+        },
+      ],
+      mcp_servers: [
+        {
+          type: "url",
+          url: "https://mcp.canva.com/mcp",
+          name: "canva",
+        },
+      ],
     });
 
-    if (!candidates.length) throw new Error("No candidates returned from generate-design");
+    // Find the last text block in the response
+    const textBlocks = response.content.filter((b) => b.type === "text");
+    const textBlock = textBlocks.length > 0 ? textBlocks[textBlocks.length - 1] : null;
 
-    // Step 3: Create design from first candidate
-    const candidateId = candidates[0].id || candidates[0].candidate_id;
-    const design = await createDesignFromCandidate(job_id, candidateId);
-    const designId = design?.id;
-    if (!designId) throw new Error("No design_id returned");
-
-    // Step 4: Edit text
-    const transactionId = await startEditingTransaction(designId);
-    const pages = await getDesignPages(designId);
-
-    const operations = [];
-    if (pages[0]?.elements) {
-      const textElements = pages[0].elements.filter((e) => e.type === "text");
-      textElements.sort((a, b) => (b.width || 0) * (b.height || 0) - (a.width || 0) * (a.height || 0));
-
-      const texts = [hook, subtext, cta, disclaimer].filter(Boolean);
-      for (let i = 0; i < Math.min(textElements.length, texts.length); i++) {
-        operations.push({
-          type: "update_element",
-          element_id: textElements[i].id,
-          properties: { text: texts[i] },
-        });
-      }
+    if (!textBlock) {
+      return Response.json(
+        { design_id: null, design_url: null, folder_url: null, folder_name: null, status: "error", error: "No text response from model" },
+        { status: 500 }
+      );
     }
 
-    if (operations.length > 0) {
-      await performEditingOperations(designId, transactionId, operations);
-    }
-    await commitEditingTransaction(designId, transactionId);
-
-    // Step 5: Folder
-    let folderId = null;
-    let folderName = `${program} — ${creative_type} — ${platform}`;
-    let folderUrl = null;
-
+    let result;
     try {
-      const folders = await searchFolders(program);
-      if (folders.length > 0) {
-        folderId = folders[0].id;
-        folderName = folders[0].name;
-        folderUrl = folders[0].url || null;
-      } else {
-        const newFolder = await createFolder(folderName);
-        folderId = newFolder?.id;
-        folderUrl = newFolder?.url || null;
-      }
-    } catch (err) {
-      console.error("Folder error:", err.message);
+      result = JSON.parse(textBlock.text);
+    } catch {
+      result = {
+        design_id: null,
+        design_url: null,
+        folder_url: null,
+        folder_name: null,
+        status: "error",
+        error: "Failed to parse model response: " + textBlock.text.slice(0, 200),
+      };
     }
 
-    if (folderId) {
-      try {
-        await moveItemToFolder(designId, folderId);
-      } catch (err) {
-        console.error("Move error:", err.message);
-      }
-    }
-
-    let designUrl = `https://www.canva.com/design/${designId}`;
-    try {
-      const d = await getDesign(designId);
-      designUrl = d?.design?.url || d?.url || designUrl;
-    } catch {}
-
-    return Response.json({
-      design_id: designId,
-      design_url: designUrl,
-      folder_url: folderUrl,
-      folder_name: folderName,
-      status: "success",
-      error: null,
-    });
+    return Response.json(result);
   } catch (error) {
     return Response.json(
       {

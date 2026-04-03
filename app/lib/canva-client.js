@@ -1,5 +1,5 @@
 // Canva Connect REST API client
-// Direct HTTP calls — no MCP dependency
+// Uses documented endpoints at api.canva.com/rest/v1
 
 const CANVA_API = "https://api.canva.com/rest/v1";
 
@@ -32,69 +32,24 @@ async function canvaFetch(path, options = {}) {
   return null;
 }
 
-// Poll a job until it completes
-async function pollJob(path, { interval = 3000, maxAttempts = 40 } = {}) {
-  for (let i = 0; i < maxAttempts; i++) {
-    const data = await canvaFetch(path);
-    const status = data.job?.status;
-    if (status === "success" || status === "completed" || status === "complete") {
-      return data;
-    }
-    if (status === "failed") {
-      throw new Error(`Job failed: ${JSON.stringify(data.job.error || data)}`);
-    }
-    await new Promise((r) => setTimeout(r, interval));
-  }
-  throw new Error("Job polling timed out");
-}
+// Design type presets for platforms
+const DESIGN_PRESETS = {
+  instagram: "instagram_post",       // 1080x1080
+  facebook: "facebook_post",         // 940x788
+  tiktok: "tiktok_video",           // 1080x1920
+};
 
-// ── Asset upload ──
-export async function uploadAssetFromUrl(url) {
-  const data = await canvaFetch("/asset-uploads", {
-    method: "POST",
-    body: JSON.stringify({ url }),
-  });
-  // Poll for completion
-  const jobId = data.job?.id;
-  if (jobId) {
-    const result = await pollJob(`/asset-uploads/${jobId}`);
-    return result.job?.asset?.id || result.asset?.id;
-  }
-  return data.asset?.id;
-}
-
-// ── Design generation ──
-export async function generateDesign({ designType, query, assetIds }) {
-  const body = {
-    design_type: designType,
-    query,
-  };
-  if (assetIds && assetIds.length > 0) {
-    body.asset_ids = assetIds;
-  }
-
-  const data = await canvaFetch("/ai/designs/generate", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-
-  // Poll for design generation to complete
-  const jobId = data.job?.id;
-  if (!jobId) throw new Error("No job_id returned from generate-design");
-
-  const result = await pollJob(`/ai/designs/generate/${jobId}`);
-  const candidates = result.job?.result?.candidates || result.candidates || [];
-
-  return { job_id: jobId, candidates };
-}
-
-// ── Create design from candidate ──
-export async function createDesignFromCandidate(jobId, candidateId) {
-  const data = await canvaFetch("/ai/designs", {
+// ── Create a blank design ──
+export async function createDesign({ title, platform }) {
+  const presetName = DESIGN_PRESETS[platform?.toLowerCase()] || "instagram_post";
+  const data = await canvaFetch("/designs", {
     method: "POST",
     body: JSON.stringify({
-      job_id: jobId,
-      candidate_id: candidateId,
+      design_type: {
+        type: "preset",
+        name: presetName,
+      },
+      title: title || "Untitled Design",
     }),
   });
   return data.design;
@@ -102,60 +57,62 @@ export async function createDesignFromCandidate(jobId, candidateId) {
 
 // ── Get design details ──
 export async function getDesign(designId) {
-  return canvaFetch(`/designs/${designId}`);
+  const data = await canvaFetch(`/designs/${designId}`);
+  return data.design || data;
 }
 
-// ── Get design thumbnail ──
-export async function getDesignThumbnail(designId) {
-  const data = await canvaFetch(`/designs/${designId}/thumbnail`);
-  return data.thumbnail?.url || null;
-}
-
-// ── Editing operations ──
-export async function startEditingTransaction(designId) {
-  const data = await canvaFetch(`/designs/${designId}/editing/transaction`, {
-    method: "POST",
-  });
-  return data.transaction?.id || data.id;
-}
-
-export async function getDesignPages(designId) {
-  const data = await canvaFetch(`/designs/${designId}/pages`);
-  return data.pages || data.items || [];
-}
-
-export async function performEditingOperations(designId, transactionId, operations) {
-  return canvaFetch(`/designs/${designId}/editing/transaction/${transactionId}/operations`, {
-    method: "POST",
-    body: JSON.stringify({ operations }),
-  });
-}
-
-export async function commitEditingTransaction(designId, transactionId) {
-  return canvaFetch(`/designs/${designId}/editing/transaction/${transactionId}/commit`, {
-    method: "POST",
-  });
-}
-
-// ── Folders ──
+// ── List folders (search by name) ──
 export async function searchFolders(query) {
-  const data = await canvaFetch(`/folders?query=${encodeURIComponent(query)}`);
-  return data.items || data.folders || [];
+  try {
+    const data = await canvaFetch(`/folders/search?query=${encodeURIComponent(query)}`);
+    return data.items || [];
+  } catch (err) {
+    // search endpoint may not exist — try listing
+    if (err.message.includes("404")) {
+      return [];
+    }
+    throw err;
+  }
 }
 
+// ── Create a folder ──
 export async function createFolder(name) {
   const data = await canvaFetch("/folders", {
     method: "POST",
     body: JSON.stringify({ name }),
   });
-  return data.folder;
+  return data.folder || data;
 }
 
+// ── Move item to folder ──
 export async function moveItemToFolder(itemId, folderId) {
   return canvaFetch(`/folders/${folderId}/items`, {
     method: "POST",
-    body: JSON.stringify({ item_id: itemId, item_type: "design" }),
+    body: JSON.stringify({
+      item_id: itemId,
+      item_type: "design",
+    }),
   });
+}
+
+// ── Upload asset from URL ──
+export async function uploadAssetFromUrl(url) {
+  const data = await canvaFetch("/asset-uploads", {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+  return data.job?.id || data.asset?.id || null;
+}
+
+// ── Export design (get a PNG/PDF) ──
+export async function exportDesign(designId, format = "png") {
+  const data = await canvaFetch(`/designs/${designId}/exports`, {
+    method: "POST",
+    body: JSON.stringify({
+      format,
+    }),
+  });
+  return data;
 }
 
 // ── Token refresh ──

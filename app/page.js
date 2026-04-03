@@ -95,14 +95,11 @@ function mapCSVRow(row, index) {
     canva_prompt: row.visual_prompt || "",
     cloudinary_url: row.cloudinary_url || "",
     compliance_notes: [],
-    // candidate workflow states
-    status: "pending", // pending → generating → picking → selected → committing → done | error
-    candidates: null,  // array from /api/generate-candidates
-    job_id: null,
-    selected_candidate: null, // { candidate_id, thumbnail_url, index }
+    status: "pending", // pending → queued → committing → done | error
     design_url: null,
     folder_url: null,
     folder_name: null,
+    copy_text: [],
     error: null,
   };
 }
@@ -129,23 +126,17 @@ function Pill({ label, active, icon, onClick }) {
 function StatusBadge({ status }) {
   const styles = {
     pending: "bg-gray-700/60 text-gray-400 border-gray-600",
-    generating: "bg-blue-900/40 text-blue-400 border-blue-700/50 animate-pulse",
-    picking: "bg-amber-900/40 text-amber-400 border-amber-700/50",
-    selected: "bg-violet-900/40 text-violet-400 border-violet-700/50",
+    queued: "bg-yellow-900/40 text-yellow-400 border-yellow-700/50",
     committing: "bg-blue-900/40 text-blue-400 border-blue-700/50 animate-pulse",
     done: "bg-emerald-900/40 text-emerald-400 border-emerald-700/50",
     error: "bg-red-900/40 text-red-400 border-red-700/50",
-    rebuilt: "bg-violet-900/40 text-violet-400 border-violet-700/50",
   };
   const labels = {
     pending: "pending",
-    generating: "generating",
-    picking: "pick design",
-    selected: "ready",
+    queued: "queued",
     committing: "committing",
     done: "done",
     error: "error",
-    rebuilt: "rebuilt",
   };
   return (
     <span
@@ -188,62 +179,13 @@ function EditableField({ value, onChange, multiline, label }) {
   );
 }
 
-// ── Candidate thumbnail grid ──
-function CandidatePicker({ candidates, selected, onSelect }) {
-  if (!candidates || candidates.length === 0) return null;
-  return (
-    <div>
-      <label className="text-[10px] uppercase tracking-wider text-gray-500 mb-2 block">
-        Choose a design ({candidates.length} candidates)
-      </label>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {candidates.map((c) => {
-          const isSelected = selected?.candidate_id === c.candidate_id;
-          return (
-            <button
-              key={c.candidate_id}
-              onClick={() => onSelect(c)}
-              className={`relative rounded-lg overflow-hidden border-2 transition-all ${
-                isSelected
-                  ? "border-orange-500 shadow-lg shadow-orange-500/20 ring-1 ring-orange-500/30"
-                  : "border-gray-700 hover:border-gray-500"
-              }`}
-            >
-              {c.thumbnail_url ? (
-                <img
-                  src={c.thumbnail_url}
-                  alt={`Candidate ${c.index + 1}`}
-                  className="w-full aspect-square object-cover"
-                />
-              ) : (
-                <div className="w-full aspect-square bg-gray-800 flex items-center justify-center text-gray-500 text-xs">
-                  No preview
-                </div>
-              )}
-              <div
-                className={`absolute bottom-0 left-0 right-0 text-center py-1 text-[10px] font-semibold ${
-                  isSelected
-                    ? "bg-orange-500 text-white"
-                    : "bg-gray-900/80 text-gray-400"
-                }`}
-              >
-                {isSelected ? "Selected" : `#${c.index + 1}`}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ── Progress bar ──
-function ProgressBar({ completed, total, label }) {
+function ProgressBar({ completed, total }) {
   const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-[10px] text-gray-500 uppercase tracking-wider">
-        <span>{label || "Progress"}</span>
+        <span>Progress</span>
         <span>
           {completed}/{total} &middot; {pct}%
         </span>
@@ -258,8 +200,36 @@ function ProgressBar({ completed, total, label }) {
   );
 }
 
+// ── Copy block — shows text to paste into Canva ──
+function CopyBlock({ copyText }) {
+  if (!copyText || copyText.length === 0) return null;
+
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  return (
+    <div className="bg-gray-950/50 border border-gray-700/30 rounded-lg p-3 space-y-1.5">
+      <label className="text-[10px] uppercase tracking-wider text-gray-500 block">
+        Copy into Canva
+      </label>
+      {copyText.map((line, i) => (
+        <div key={i} className="flex items-start gap-2 group">
+          <p className="text-xs text-gray-300 flex-1 leading-relaxed">{line}</p>
+          <button
+            onClick={() => handleCopy(line)}
+            className="text-[10px] text-gray-600 hover:text-orange-400 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            copy
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Creative card ──
-function CreativeCard({ creative, index, onUpdate, onSelectCandidate, onGenerate, onCommitSingle, onRebuild }) {
+function CreativeCard({ creative, index, onUpdate, onCommitSingle, onRebuild }) {
   const update = (field, value) => {
     onUpdate(index, { ...creative, [field]: value });
   };
@@ -284,55 +254,32 @@ function CreativeCard({ creative, index, onUpdate, onSelectCandidate, onGenerate
         <EditableField label="CTA" value={creative.cta} onChange={(v) => update("cta", v)} />
       </div>
 
-      {/* Candidate picker — shown when in picking or selected state */}
-      {(creative.status === "picking" || creative.status === "selected") && creative.candidates && (
-        <CandidatePicker
-          candidates={creative.candidates}
-          selected={creative.selected_candidate}
-          onSelect={(c) => onSelectCandidate(index, c)}
-        />
-      )}
-
-      {/* Action buttons per state */}
-      {creative.status === "pending" && (
-        <button
-          onClick={() => onGenerate(index)}
-          className="text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-1.5 rounded-lg border border-blue-500/20 transition-colors"
-        >
-          Generate Designs
-        </button>
-      )}
-
-      {creative.status === "selected" && (
-        <button
-          onClick={() => onCommitSingle(index)}
-          className="text-xs bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 px-3 py-1.5 rounded-lg border border-orange-500/20 transition-colors font-medium"
-        >
-          Commit Selected Design
-        </button>
-      )}
-
-      {/* Done links */}
-      {creative.status === "done" && creative.design_url && (
-        <div className="flex gap-3 pt-1">
-          <a
-            href={creative.design_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-orange-400 hover:text-orange-300 font-medium"
-          >
-            Design &#x2197;
-          </a>
-          {creative.folder_url && (
-            <a
-              href={creative.folder_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-orange-400 hover:text-orange-300 font-medium"
-            >
-              Folder &#x2197;
-            </a>
-          )}
+      {/* Done state — links + copy text */}
+      {creative.status === "done" && (
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            {creative.design_url && (
+              <a
+                href={creative.design_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-orange-400 hover:text-orange-300 font-medium"
+              >
+                Open in Canva &#x2197;
+              </a>
+            )}
+            {creative.folder_url && (
+              <a
+                href={creative.folder_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-orange-400 hover:text-orange-300 font-medium"
+              >
+                Folder &#x2197;
+              </a>
+            )}
+          </div>
+          <CopyBlock copyText={creative.copy_text} />
         </div>
       )}
 
@@ -344,17 +291,18 @@ function CreativeCard({ creative, index, onUpdate, onSelectCandidate, onGenerate
             onClick={() => onRebuild(index)}
             className="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-1 rounded-lg border border-red-500/20 transition-colors"
           >
-            Rebuild
+            Retry
           </button>
         </div>
       )}
 
-      {creative.status === "rebuilt" && (
+      {/* Pending — single commit button */}
+      {creative.status === "pending" && (
         <button
-          onClick={() => onGenerate(index)}
-          className="text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-1.5 rounded-lg border border-blue-500/20 transition-colors"
+          onClick={() => onCommitSingle(index)}
+          className="text-xs bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 px-3 py-1.5 rounded-lg border border-orange-500/20 transition-colors font-medium"
         >
-          Generate Designs
+          Commit to Canva
         </button>
       )}
     </div>
@@ -370,15 +318,11 @@ export default function Home() {
   const [csvText, setCsvText] = useState("");
   const [creatives, setCreatives] = useState([]);
   const [parseError, setParseError] = useState("");
-
-  // Batch progress
-  const [batchPhase, setBatchPhase] = useState(null); // null | "generating" | "committing"
-  const [batchProgress, setBatchProgress] = useState(0);
-  const [batchTotal, setBatchTotal] = useState(0);
-  const [allDone, setAllDone] = useState(false);
+  const [committing, setCommitting] = useState(false);
   const [committedCount, setCommittedCount] = useState(0);
-
+  const [allDone, setAllDone] = useState(false);
   const creativesRef = useRef([]);
+
   const programs = SCHOOL_PROGRAMS[school] || [];
 
   const handleSchoolChange = (s) => {
@@ -404,7 +348,6 @@ export default function Home() {
     setParseError("");
     setAllDone(false);
     setCommittedCount(0);
-    setBatchPhase(null);
 
     if (!csvText.trim()) {
       setParseError("Paste CSV data first.");
@@ -419,16 +362,16 @@ export default function Home() {
     setCreativesSync(mapped);
   };
 
-  // ── Generate candidates for one row ──
-  const generateCandidatesForRow = async (index) => {
+  // ── Commit one row ──
+  const commitRow = async (index) => {
     const c = creativesRef.current[index];
 
     setCreativesSync((prev) =>
-      prev.map((cr, i) => (i === index ? { ...cr, status: "generating", error: null } : cr))
+      prev.map((cr, i) => (i === index ? { ...cr, status: "committing", error: null } : cr))
     );
 
     try {
-      const res = await fetch("/api/generate-candidates", {
+      const res = await fetch("/api/commit-row", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -443,76 +386,6 @@ export default function Home() {
           cloudinary_url: c.cloudinary_url || "",
         }),
       });
-      const data = await res.json();
-
-      if (data.error) {
-        setCreativesSync((prev) =>
-          prev.map((cr, i) =>
-            i === index ? { ...cr, status: "error", error: data.error } : cr
-          )
-        );
-        return false;
-      }
-
-      setCreativesSync((prev) =>
-        prev.map((cr, i) =>
-          i === index
-            ? {
-                ...cr,
-                status: "picking",
-                candidates: data.candidates || [],
-                job_id: data.job_id,
-                selected_candidate: null,
-              }
-            : cr
-        )
-      );
-      return true;
-    } catch (err) {
-      setCreativesSync((prev) =>
-        prev.map((cr, i) =>
-          i === index ? { ...cr, status: "error", error: err.message } : cr
-        )
-      );
-      return false;
-    }
-  };
-
-  // ── Select a candidate ──
-  const handleSelectCandidate = (index, candidate) => {
-    setCreativesSync((prev) =>
-      prev.map((c, i) =>
-        i === index ? { ...c, status: "selected", selected_candidate: candidate } : c
-      )
-    );
-  };
-
-  // ── Finalize (commit) one row ──
-  const finalizeRow = async (index) => {
-    const c = creativesRef.current[index];
-    if (!c.selected_candidate || !c.job_id) return false;
-
-    setCreativesSync((prev) =>
-      prev.map((cr, i) => (i === index ? { ...cr, status: "committing" } : cr))
-    );
-
-    try {
-      const res = await fetch("/api/finalize-design", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          school,
-          program: c.program || program,
-          platform,
-          creative_type: creativeType,
-          hook: c.hook,
-          subtext: c.subtext,
-          cta: c.cta,
-          canva_prompt: c.canva_prompt,
-          job_id: c.job_id,
-          candidate_id: c.selected_candidate.candidate_id,
-        }),
-      });
       const result = await res.json();
 
       if (result.status === "success") {
@@ -525,6 +398,7 @@ export default function Home() {
                   design_url: result.design_url,
                   folder_url: result.folder_url,
                   folder_name: result.folder_name,
+                  copy_text: result.copy_text || [],
                 }
               : cr
           )
@@ -548,107 +422,41 @@ export default function Home() {
     }
   };
 
-  // ── Generate All: generate candidates for every pending row sequentially ──
-  const handleGenerateAll = async () => {
-    setBatchPhase("generating");
-    setAllDone(false);
-    const pending = creativesRef.current
-      .map((c, i) => (c.status === "pending" ? i : -1))
-      .filter((i) => i >= 0);
-    setBatchTotal(pending.length);
-    setBatchProgress(0);
-
-    for (let k = 0; k < pending.length; k++) {
-      await generateCandidatesForRow(pending[k]);
-      setBatchProgress(k + 1);
-    }
-
-    setBatchPhase(null);
-  };
-
-  // ── Commit All: finalize every row that has a selected candidate ──
+  // ── Commit All ──
   const handleCommitAll = async () => {
-    setBatchPhase("committing");
+    setCommitting(true);
     setAllDone(false);
     let completed = 0;
 
-    const ready = creativesRef.current
-      .map((c, i) => (c.status === "selected" ? i : -1))
-      .filter((i) => i >= 0);
-    setBatchTotal(ready.length);
-    setBatchProgress(0);
+    // Mark pending as queued
+    setCreativesSync((prev) =>
+      prev.map((c) => (c.status === "pending" ? { ...c, status: "queued" } : c))
+    );
 
-    for (let k = 0; k < ready.length; k++) {
-      const ok = await finalizeRow(ready[k]);
+    for (let i = 0; i < creativesRef.current.length; i++) {
+      const status = creativesRef.current[i].status;
+      if (status !== "queued") continue;
+      const ok = await commitRow(i);
       if (ok) completed++;
-      setBatchProgress(k + 1);
       setCommittedCount(completed);
     }
 
     setAllDone(true);
-    setBatchPhase(null);
+    setCommitting(false);
   };
 
-  // ── Rebuild: re-generate copy for a failed row ──
-  const handleRebuild = async (index) => {
-    const c = creativesRef.current[index];
-
+  // ── Retry failed row ──
+  const handleRetry = async (index) => {
     setCreativesSync((prev) =>
-      prev.map((cr, i) =>
-        i === index ? { ...cr, status: "generating", error: null } : cr
-      )
+      prev.map((c, i) => (i === index ? { ...c, status: "pending", error: null } : c))
     );
-
-    try {
-      const res = await fetch("/api/generate-copy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          school,
-          program: c.program || program,
-          platform,
-          creative_type: creativeType,
-          num_creatives: 1,
-          icp: "Working Adult",
-          tone: "Recognition",
-          archetype: c.messaging_archetype || c.hook_format || "Transformation",
-        }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      const rebuilt = data.creatives[0];
-      setCreativesSync((prev) =>
-        prev.map((cr, i) =>
-          i === index
-            ? {
-                ...cr,
-                hook: rebuilt.hook,
-                subtext: rebuilt.subtext,
-                cta: rebuilt.cta,
-                canva_prompt: rebuilt.canva_prompt,
-                compliance_notes: rebuilt.compliance_notes,
-                status: "rebuilt",
-                candidates: null,
-                job_id: null,
-                selected_candidate: null,
-                error: null,
-              }
-            : cr
-        )
-      );
-    } catch (err) {
-      setCreativesSync((prev) =>
-        prev.map((cr, i) =>
-          i === index ? { ...cr, status: "error", error: err.message } : cr
-        )
-      );
-    }
+    await commitRow(index);
   };
 
   const doneCount = creatives.filter((c) => c.status === "done").length;
-  const selectedCount = creatives.filter((c) => c.status === "selected").length;
-  const pendingCount = creatives.filter((c) => c.status === "pending").length;
-  const pickingCount = creatives.filter((c) => c.status === "picking" || c.status === "selected").length;
+  const pendingCount = creatives.filter(
+    (c) => c.status === "pending" || c.status === "queued"
+  ).length;
 
   const selectCls =
     "bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-orange-500/50 focus:border-orange-500/50";
@@ -760,7 +568,7 @@ export default function Home() {
         <div className="flex justify-end">
           <button
             onClick={handleLoadCSV}
-            disabled={!!batchPhase}
+            disabled={committing}
             className="bg-orange-500 hover:bg-orange-400 disabled:bg-orange-800 disabled:text-gray-400 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors shadow-lg shadow-orange-500/10"
           >
             Load Creatives
@@ -771,56 +579,41 @@ export default function Home() {
       {/* Creatives section */}
       {creatives.length > 0 && (
         <section className="space-y-4">
-          {/* Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
               Creatives &middot; {creatives.length} rows
             </h2>
             <div className="flex items-center gap-2">
+              {(committing || allDone) && (
+                <span className="text-xs text-gray-400 font-mono">
+                  {doneCount}/{creatives.length}
+                </span>
+              )}
               {pendingCount > 0 && (
                 <button
-                  onClick={handleGenerateAll}
-                  disabled={!!batchPhase}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900 disabled:text-gray-500 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-colors"
-                >
-                  {batchPhase === "generating"
-                    ? `Generating ${batchProgress}/${batchTotal}...`
-                    : `Generate All (${pendingCount})`}
-                </button>
-              )}
-              {selectedCount > 0 && (
-                <button
                   onClick={handleCommitAll}
-                  disabled={!!batchPhase}
+                  disabled={committing}
                   className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-900 disabled:text-gray-500 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-colors"
                 >
-                  {batchPhase === "committing"
-                    ? `Committing ${batchProgress}/${batchTotal}...`
-                    : `Commit All (${selectedCount})`}
+                  {committing ? "Committing..." : `Commit All (${pendingCount})`}
                 </button>
               )}
             </div>
           </div>
 
-          {/* Progress bar */}
-          {batchPhase && (
-            <ProgressBar
-              completed={batchProgress}
-              total={batchTotal}
-              label={batchPhase === "generating" ? "Generating designs" : "Committing to Canva"}
-            />
+          {(committing || allDone) && (
+            <ProgressBar completed={doneCount} total={creatives.length} />
           )}
 
-          {/* Summary */}
           {allDone && (
             <div className="bg-emerald-900/20 border border-emerald-800/40 rounded-xl p-4">
               <p className="text-sm text-emerald-400">
-                Pipeline complete. {committedCount} of {creatives.length} creatives committed.
+                Pipeline complete. {committedCount} of {creatives.length} designs created in Canva.
+                Open each design link to add your copy text.
               </p>
             </div>
           )}
 
-          {/* Cards grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {creatives.map((c, i) => (
               <CreativeCard
@@ -828,10 +621,8 @@ export default function Home() {
                 creative={c}
                 index={i}
                 onUpdate={updateCreative}
-                onSelectCandidate={handleSelectCandidate}
-                onGenerate={generateCandidatesForRow}
-                onCommitSingle={finalizeRow}
-                onRebuild={handleRebuild}
+                onCommitSingle={commitRow}
+                onRebuild={handleRetry}
               />
             ))}
           </div>
