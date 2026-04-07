@@ -19,6 +19,7 @@ export async function POST(request) {
     const metadata = {
       name: (fileName || "Organic Brief") + ".csv",
       mimeType: "text/csv",
+      parents: ["0AI1iXw7s-lNOUk9PVA"],
     };
 
     const boundary = "----FormBoundary" + Date.now();
@@ -35,7 +36,7 @@ export async function POST(request) {
     ].join("\r\n");
 
     const uploadRes = await fetch(
-      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink&supportsAllDrives=true",
       {
         method: "POST",
         headers: {
@@ -53,11 +54,11 @@ export async function POST(request) {
 
     const file = await uploadRes.json();
 
-    // Share with anyone who has the link
-    await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
+    // Share with anyone who has the link (viewer only)
+    await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions?supportsAllDrives=true`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "writer", type: "anyone" }),
+      body: JSON.stringify({ role: "reader", type: "anyone" }),
     });
 
     return Response.json({ url: file.webViewLink, fileId: file.id });
