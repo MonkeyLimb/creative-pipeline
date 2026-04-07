@@ -1,9 +1,9 @@
 export async function POST(request) {
   try {
-    const { posts, school, program, platforms } = await request.json();
+    const { csvData, fileName } = await request.json();
 
-    if (!posts || !posts.length) {
-      return Response.json({ error: "No posts to upload" }, { status: 400 });
+    if (!csvData) {
+      return Response.json({ error: "No CSV data to upload" }, { status: 400 });
     }
 
     const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
@@ -12,117 +12,55 @@ export async function POST(request) {
     }
 
     const key = JSON.parse(serviceAccountKey);
-
-    // Generate JWT for Google API auth
     const jwt = await createJWT(key);
     const accessToken = await exchangeJWTForToken(jwt);
 
-    // Create a new spreadsheet
-    const platformStr = Array.isArray(platforms) ? platforms.join(", ") : platforms || "";
-    const title = `${school} - ${program} - Organic Brief${platformStr ? ` (${platformStr})` : ""}`;
+    // Upload CSV to Google Drive with conversion to Google Sheets
+    const metadata = {
+      name: fileName || "Organic Brief",
+      mimeType: "application/vnd.google-apps.spreadsheet", // auto-convert CSV to Sheets
+    };
 
-    const createRes = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        properties: { title },
-        sheets: [{ properties: { title: "Creative Brief" } }],
-      }),
-    });
+    const boundary = "----FormBoundary" + Date.now();
+    const body = [
+      `--${boundary}`,
+      "Content-Type: application/json; charset=UTF-8",
+      "",
+      JSON.stringify(metadata),
+      `--${boundary}`,
+      "Content-Type: text/csv",
+      "",
+      csvData,
+      `--${boundary}--`,
+    ].join("\r\n");
 
-    if (!createRes.ok) {
-      const err = await createRes.text();
-      throw new Error(`Failed to create spreadsheet: ${err}`);
-    }
-
-    const spreadsheet = await createRes.json();
-    const spreadsheetId = spreadsheet.spreadsheetId;
-    const spreadsheetUrl = spreadsheet.spreadsheetUrl;
-
-    // Build rows in the organic brief format
-    const rows = [];
-    posts.forEach((post, i) => {
-      rows.push([`Post ${i + 1}`, "", "", "", "Links to final output"]);
-      rows.push(["", "Post Brief (Description)", post.post_brief || "", "", ""]);
-      rows.push(["", "Required to be in the Post", post.required_in_post || "", "", ""]);
-      rows.push(["", "Size", post.size || "4:5", "", ""]);
-      rows.push(["", "Notes", post.notes || "", "", ""]);
-      rows.push(["", "Inspiration", post.inspiration || "", "", ""]);
-      rows.push(["", "Versions", "", "", ""]);
-      rows.push(["", "Caption (Fill out if empty)", post.caption || "", "", ""]);
-      rows.push(["", "Extra notes", post.extra_notes || "", "", ""]);
-      if (i < posts.length - 1) {
-        rows.push(["", "", "", "", ""]);
-        rows.push(["", "", "", "", ""]);
-        rows.push(["", "", "", "", ""]);
-      }
-    });
-
-    // Write data to the sheet
-    const updateRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Creative%20Brief!A1?valueInputOption=RAW`,
-      {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ range: "Creative Brief!A1", majorDimension: "ROWS", values: rows }),
-      }
-    );
-
-    if (!updateRes.ok) {
-      const err = await updateRes.text();
-      throw new Error(`Failed to write data: ${err}`);
-    }
-
-    // Format: bold post headers, auto-resize columns
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        requests: [
-          // Auto-resize columns
-          { autoResizeDimensions: { dimensions: { sheetId: 0, dimension: "COLUMNS", startIndex: 0, endIndex: 5 } } },
-          // Bold the Post header rows
-          ...posts.map((_, i) => {
-            const rowIndex = i * 12; // 9 data rows + 3 spacer rows
-            return {
-              repeatCell: {
-                range: { sheetId: 0, startRowIndex: rowIndex, endRowIndex: rowIndex + 1, startColumnIndex: 0, endColumnIndex: 1 },
-                cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 11 } } },
-                fields: "userEnteredFormat.textFormat",
-              },
-            };
-          }),
-          // Bold the field labels (column B)
-          ...posts.flatMap((_, i) => {
-            const baseRow = i * 12;
-            return Array.from({ length: 8 }, (__, j) => ({
-              repeatCell: {
-                range: { sheetId: 0, startRowIndex: baseRow + 1 + j, endRowIndex: baseRow + 2 + j, startColumnIndex: 1, endColumnIndex: 2 },
-                cell: { userEnteredFormat: { textFormat: { bold: true } } },
-                fields: "userEnteredFormat.textFormat",
-              },
-            }));
-          }),
-        ],
-      }),
-    });
-
-    // Share with anyone who has the link (viewer)
-    const driveShareRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${spreadsheetId}/permissions`,
+    const uploadRes = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "writer", type: "anyone" }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": `multipart/related; boundary=${boundary}`,
+        },
+        body,
       }
     );
 
-    if (!driveShareRes.ok) {
-      // Non-fatal: the sheet was created, just not shared publicly
-      console.error("Failed to share sheet:", await driveShareRes.text());
+    if (!uploadRes.ok) {
+      const err = await uploadRes.text();
+      throw new Error(`Failed to upload to Drive: ${err}`);
     }
 
-    return Response.json({ url: spreadsheetUrl, spreadsheetId });
+    const file = await uploadRes.json();
+
+    // Share with anyone who has the link
+    await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "writer", type: "anyone" }),
+    });
+
+    return Response.json({ url: file.webViewLink, fileId: file.id });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
@@ -135,7 +73,7 @@ async function createJWT(key) {
   const now = Math.floor(Date.now() / 1000);
   const claim = {
     iss: key.client_email,
-    scope: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive",
+    scope: "https://www.googleapis.com/auth/drive.file",
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600,
@@ -146,7 +84,6 @@ async function createJWT(key) {
   const claimB64 = encode(claim);
   const unsignedToken = `${headerB64}.${claimB64}`;
 
-  // Import the private key and sign
   const pemContent = key.private_key.replace(/-----BEGIN PRIVATE KEY-----/, "").replace(/-----END PRIVATE KEY-----/, "").replace(/\n/g, "");
   const binaryKey = Uint8Array.from(atob(pemContent), (c) => c.charCodeAt(0));
 

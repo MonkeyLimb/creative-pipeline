@@ -399,11 +399,13 @@ ${csvData}`;
     if (!inspoResult || !inspoResult.posts) return;
     setSheetsUploading(true);
     try {
-      const r = await fetch("/api/upload-to-sheets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ posts: inspoResult.posts, school, program, platforms: plat }) });
+      const csvData = inspoToCsvOnly();
+      const fileName = `${school} - ${program} - Organic Brief`;
+      const r = await fetch("/api/upload-to-sheets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csvData, fileName }) });
       const d = await r.json();
       if (d.error) throw new Error(d.error);
       window.open(d.url, "_blank");
-      toast.success("Uploaded to Google Sheets");
+      toast.success("Uploaded to Google Drive");
     } catch (e) { toast.error(e.message); } finally { setSheetsUploading(false); }
   };
 
