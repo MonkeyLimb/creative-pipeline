@@ -20,7 +20,7 @@ const ICPS = ["Working Adult", "Career Reset", "Ambition Blocker"];
 const TONES = ["Recognition", "Belief", "Awareness"];
 const HOOKS = ["Objection Flip", "Stat/Fact", "Day in the Life", "Pain Point", "Transformation", "Curiosity"];
 const PPD = [1, 2, 3, 4, 5];
-const DR = ["1 Week", "2 Weeks", "1 Month"];
+
 const AC = [1, 3, 5, 7, 10, 15];
 
 function useTheme() {
@@ -84,6 +84,7 @@ function DatePicker({ dates, onChange, mode, onModeChange, dateRange, onDateRang
   const remove = (d) => onChange(dates.filter((x) => x !== d));
   const fmt = (d) => { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); };
   const today = new Date().toISOString().split("T")[0];
+  const dateInputStyle = { width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" };
   return (
     <div>
       <div className="flex gap-1.5 mb-2">
@@ -91,10 +92,19 @@ function DatePicker({ dates, onChange, mode, onModeChange, dateRange, onDateRang
         <Chip label="Date Range" active={mode === "range"} onClick={() => onModeChange("range")} />
       </div>
       {mode === "range" ? (
-        <Sel value={dateRange} onChange={onDateRangeChange} options={DR} />
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>Start</div>
+            <input type="date" min={today} value={dateRange.start || ""} onClick={(e) => e.target.showPicker?.()} onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })} style={dateInputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>End</div>
+            <input type="date" min={dateRange.start || today} value={dateRange.end || ""} onClick={(e) => e.target.showPicker?.()} onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })} style={dateInputStyle} />
+          </div>
+        </div>
       ) : (
         <>
-          <input type="date" min={today} onChange={addDate} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }} />
+          <input type="date" min={today} onChange={addDate} onClick={(e) => e.target.showPicker?.()} style={dateInputStyle} />
           {dates.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {dates.map((d) => (
@@ -255,7 +265,7 @@ function CalendarTab() {
   const [ppd, setPpd] = useState(2);
   const [dateMode, setDateMode] = useState("dates");
   const [dates, setDates] = useState([]);
-  const [dr, setDr] = useState("1 Week");
+  const [dr, setDr] = useState({ start: "", end: "" });
   const [fmt, setFmt] = useState("Single");
   const [ctx, setCtx] = useState("");
   const [posts, setPosts] = useState([]);
@@ -326,7 +336,7 @@ function CalendarTab() {
     ].map((r) => r.map(esc).join(","));
     const csvData = [h, ...rows].join("\n");
 
-    const instructions = `# Dreambound Organic Content — Visual Inspo Brief
+    const instructions = `# Dreambound Organic Content — Design in Canva
 ## Context
 - School: ${school}
 - Program/Focus: ${program}
@@ -336,13 +346,13 @@ function CalendarTab() {
 
 ## Instructions
 Below is a CSV of 3 creative angles (Despair, Hope, Bridge) generated from visual inspiration analysis.
-For each angle, generate a ${platformStr} organic post:
+For each angle, design a ${platformStr} organic post in Canva:
 
-1. Use the Headline as the hook (first line / text overlay).
-2. Use the Body Copy as the caption or supporting text.
-3. Reference the Visual Context to inform the visual direction and mood.
-4. Each angle is a STANDALONE post — do not combine them.
-5. Dreambound is the ONLY brand name. Never use school names in copy.
+1. Use the Headline as the hook (first line / bold text overlay on the design).
+2. Use the Body Copy as the caption or supporting text element.
+3. Reference the Visual Context to inform the visual direction, mood, and imagery for the Canva design.
+4. Each angle is a STANDALONE design — do not combine them. Create 3 separate Canva designs.
+5. Dreambound is the ONLY brand name. Never use school names in copy or designs.
 6. No employment guarantees, outcome promises, or "guarantee", "free", "dream career", "Fast Track".
 ${school !== "General" && ["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `7. Degree program: use "study" and "education" only. Never "train"/"training".\n` : ""}${school !== "General" && !["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `7. Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}\n` : ""}
 ## CSV Data
@@ -396,7 +406,7 @@ ${csvData}`;
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
           <div><Lbl>Posts per Day</Lbl><Sel value={ppd} onChange={(v) => setPpd(Number(v))} options={PPD} /></div>
           <div className="sm:col-span-2"><Lbl>Dates</Lbl><DatePicker dates={dates} onChange={setDates} mode={dateMode} onModeChange={setDateMode} dateRange={dr} onDateRangeChange={setDr} /></div>
-          <div className="flex items-end"><Btn onClick={gen} disabled={(isInspoMode ? inspoLoading : loading) || !plat.length || (!isInspoMode && dateMode === "dates" && !dates.length)}>{(isInspoMode ? inspoLoading : loading) && <Spinner />}{isInspoMode ? (inspoLoading ? "Analyzing Images..." : "Analyze Inspo") : loading ? "Generating..." : dateMode === "dates" ? `Generate ${ppd * dates.length} Posts` : `Generate Posts`}</Btn></div>
+          <div className="flex items-end"><Btn onClick={gen} disabled={(isInspoMode ? inspoLoading : loading) || !plat.length || (!isInspoMode && dateMode === "dates" && !dates.length) || (!isInspoMode && dateMode === "range" && (!dr.start || !dr.end))}>{(isInspoMode ? inspoLoading : loading) && <Spinner />}{isInspoMode ? (inspoLoading ? "Analyzing Images..." : "Analyze Inspo") : loading ? "Generating..." : dateMode === "dates" ? `Generate ${ppd * dates.length} Posts` : `Generate Posts`}</Btn></div>
         </div>
         {/* Visual Inspo Image Upload — Organic only */}
         <AnimatePresence>{ct === "Organic" && (
@@ -612,7 +622,7 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
     const dim = dims[plat] || "1080x1350";
     const isCarousel = fmt === "Carousel";
 
-    return `# Dreambound ${ct} Ad Creatives — Ready to Generate
+    return `# Dreambound ${ct} Ad Creatives — Design in Canva
 ## Context
 - School: ${school}
 - Program: ${program}
@@ -622,13 +632,14 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
 - Target Size: ${dim}
 
 ## Instructions
-Below is a CSV of ${ads.length} ad creatives. For each row, generate a ${plat} ${ct.toLowerCase()} ad design:
+Below is a CSV of ${ads.length} ad creatives. For each row, design a ${plat} ${ct.toLowerCase()} ad in Canva:
 
 1. Use "Hook Text" as the primary headline (large, bold, high contrast).
 2. Use "Subtext" as supporting body copy (smaller, below headline).
 3. Use "CTA" as a button or bottom banner text.
-4. Use "AI Visual Prompt" as the visual direction for the background/scene.${isCarousel ? `
-5. CAROUSEL format: Generate multi-page designs (3-5 slides per ad).
+4. Use "AI Visual Prompt" as the visual direction for the Canva design background/scene.
+5. Create each ad as a separate Canva design at ${dim}.${isCarousel ? `
+6. CAROUSEL format: Generate multi-page Canva designs (3-5 slides per ad).
    - Slide 1: Hook Text as bold headline with striking visual.
    - Slides 2-3: Subtext broken across slides with supporting visuals.
    - Final slide: CTA with clear action button.` : ""}

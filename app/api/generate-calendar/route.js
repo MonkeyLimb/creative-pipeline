@@ -63,11 +63,20 @@ export async function POST(request) {
       const dateList = dates.join(", ");
       dateInstruction = `Generate posts for these specific dates: ${dateList}\nCreate exactly ${posts_per_day} post(s) per day for each date. Use the exact dates provided — do not add or skip any dates.`;
     } else {
-      const today = new Date().toISOString().split("T")[0];
-      const daysMap = { "1 Week": 7, "2 Weeks": 14, "1 Month": 30 };
-      const days = daysMap[date_range] || 7;
-      totalPosts = posts_per_day * days;
-      dateInstruction = `Generate posts starting from ${today} spread across a ${date_range.toLowerCase()} period.\nCreate ${posts_per_day} post(s) per day, spacing them evenly across the period.`;
+      const start = date_range?.start || new Date().toISOString().split("T")[0];
+      const end = date_range?.end;
+      if (start && end) {
+        const diffMs = new Date(end) - new Date(start);
+        const days = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
+        totalPosts = posts_per_day * days;
+        dateInstruction = `Generate posts from ${start} to ${end} (${days} days).\nCreate ${posts_per_day} post(s) per day, spacing them evenly across the period.`;
+      } else {
+        // Fallback for legacy string format
+        const daysMap = { "1 Week": 7, "2 Weeks": 14, "1 Month": 30 };
+        const days = daysMap[date_range] || 7;
+        totalPosts = posts_per_day * days;
+        dateInstruction = `Generate posts starting from ${start} spread across a ${typeof date_range === "string" ? date_range.toLowerCase() : "1 week"} period.\nCreate ${posts_per_day} post(s) per day, spacing them evenly across the period.`;
+      }
     }
 
     const userMessage = `Generate a content calendar of exactly ${totalPosts} posts.
