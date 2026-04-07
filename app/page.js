@@ -237,16 +237,26 @@ function GuideSidebar({ open, onClose }) {
 }
 
 // ─── Visual Inspo Results ───
-function InspoCard({ angle, title, visual, color = "orange" }) {
-  const colors = { orange: { bg: "var(--accent-bg)", border: "var(--accent-border)", color: "var(--accent)" }, green: { bg: "var(--green-bg)", border: "var(--green-border)", color: "var(--green)" }, violet: { bg: "var(--violet-bg)", border: "var(--violet-border)", color: "var(--violet)" } };
-  const c = colors[color] || colors.orange;
+function BriefField({ label, value }) {
+  if (!value) return null;
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65 }}>{value}</p>
+    </div>
+  );
+}
+function PostBriefCard({ post, index, color = "orange" }) {
   return (
     <Card className="overflow-hidden">
       <div style={{ padding: "16px 20px" }}>
-        <div className="flex items-center gap-2 mb-3"><Badge color={color}>{title}</Badge></div>
-        {visual && <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 12, lineHeight: 1.5, fontStyle: "italic" }}>{visual}</p>}
-        <div style={{ marginBottom: 8 }}><div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>Headline</div><p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", lineHeight: 1.5 }}>{angle.headline}</p></div>
-        <div><div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>Body Copy</div><p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65 }}>{angle.body_copy}</p></div>
+        <div className="flex items-center gap-2 mb-3"><Badge color={color}>Post {index + 1}</Badge>{post.size && <Badge color="green">{post.size}</Badge>}</div>
+        <div style={{ marginBottom: 8 }}><div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>Post Brief</div><p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", lineHeight: 1.5 }}>{post.post_brief}</p></div>
+        <BriefField label="Required to be in the Post" value={post.required_in_post} />
+        <BriefField label="Notes" value={post.notes} />
+        <BriefField label="Inspiration" value={post.inspiration} />
+        <BriefField label="Caption" value={post.caption} />
+        <BriefField label="Extra Notes" value={post.extra_notes} />
       </div>
     </Card>
   );
@@ -324,54 +334,65 @@ function CalendarTab() {
 
   // ─── Inspo CSV helpers ───
   const inspoToCsv = () => {
-    if (!inspoResult) return "";
+    if (!inspoResult || !inspoResult.posts) return "";
     const esc = (v) => `"${(v || "").replace(/"/g, '""')}"`;
-    const vis = inspoResult.visual_hook_analysis;
     const platformStr = plat.join(", ");
-    const h = "Angle Type,Visual Context,Headline,Body Copy";
-    const rows = [
-      ["Despair", vis, inspoResult.pure_despair_angle.headline, inspoResult.pure_despair_angle.body_copy],
-      ["Hope", vis, inspoResult.pure_hope_angle.headline, inspoResult.pure_hope_angle.body_copy],
-      ["Bridge", vis, inspoResult.bridge_angle.headline, inspoResult.bridge_angle.body_copy],
-    ].map((r) => r.map(esc).join(","));
-    const csvData = [h, ...rows].join("\n");
+    const posts = inspoResult.posts;
 
-    const instructions = `# Dreambound Organic Content — Design in Canva
+    // Build CSV in the organic brief spreadsheet format
+    let csvRows = [];
+    posts.forEach((post, i) => {
+      csvRows.push(`Post ${i + 1},,,,Links to final output`);
+      csvRows.push(`,Post Brief (Description),${esc(post.post_brief)},,`);
+      csvRows.push(`,Required to be in the Post,${esc(post.required_in_post)},,`);
+      csvRows.push(`,Size,${esc(post.size)},,`);
+      csvRows.push(`,Notes,${esc(post.notes)},,`);
+      csvRows.push(`,Inspiration,${esc(post.inspiration)},,`);
+      csvRows.push(`,Versions,,,`);
+      csvRows.push(`,Caption (Fill out if empty),${esc(post.caption)},,`);
+      csvRows.push(`,Extra notes,${esc(post.extra_notes)},,`);
+      if (i < posts.length - 1) { csvRows.push(`,,,,`); csvRows.push(`,,,,`); csvRows.push(`,,,,`); }
+    });
+    const csvData = csvRows.join("\n");
+
+    const instructions = `# Dreambound Organic Creative Brief
 ## Context
 - School: ${school}
 - Program/Focus: ${program}
 - Platforms: ${platformStr}
 - Content Type: Organic
-- Framework: Selling to Feeling
 
 ## Instructions
-Below is a CSV of 3 creative angles (Despair, Hope, Bridge) generated from visual inspiration analysis.
-For each angle, design a ${platformStr} organic post in Canva:
+Below is a creative brief with ${posts.length} post briefs for organic content.
+Each post has production direction for the creative team.
 
-1. Use the Headline as the hook (first line / bold text overlay on the design).
-2. Use the Body Copy as the caption or supporting text element.
-3. Reference the Visual Context to inform the visual direction, mood, and imagery for the Canva design.
-4. Each angle is a STANDALONE design — do not combine them. Create 3 separate Canva designs.
-5. Dreambound is the ONLY brand name. Never use school names in copy or designs.
-6. No employment guarantees, outcome promises, or "guarantee", "free", "dream career", "Fast Track".
-${school !== "General" && ["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `7. Degree program: use "study" and "education" only. Never "train"/"training".\n` : ""}${school !== "General" && !["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `7. Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}\n` : ""}
-## CSV Data
+1. Dreambound is the ONLY brand name. Never use school names in copy or designs.
+2. No employment guarantees, outcome promises, or "guarantee", "free", "dream career", "Fast Track".
+${school !== "General" && ["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `3. Degree program: use "study" and "education" only. Never "train"/"training".\n` : ""}${school !== "General" && !["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `3. Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}\n` : ""}
+## Brief Data
 ${csvData}`;
     return instructions;
   };
   const inspoToCsvOnly = () => {
-    if (!inspoResult) return "";
+    if (!inspoResult || !inspoResult.posts) return "";
     const esc = (v) => `"${(v || "").replace(/"/g, '""')}"`;
-    const vis = inspoResult.visual_hook_analysis;
-    const h = "Angle Type,Visual Context,Headline,Body Copy";
-    const rows = [
-      ["Despair", vis, inspoResult.pure_despair_angle.headline, inspoResult.pure_despair_angle.body_copy],
-      ["Hope", vis, inspoResult.pure_hope_angle.headline, inspoResult.pure_hope_angle.body_copy],
-      ["Bridge", vis, inspoResult.bridge_angle.headline, inspoResult.bridge_angle.body_copy],
-    ].map((r) => r.map(esc).join(","));
-    return [h, ...rows].join("\n");
+    const posts = inspoResult.posts;
+    let csvRows = [];
+    posts.forEach((post, i) => {
+      csvRows.push(`Post ${i + 1},,,,Links to final output`);
+      csvRows.push(`,Post Brief (Description),${esc(post.post_brief)},,`);
+      csvRows.push(`,Required to be in the Post,${esc(post.required_in_post)},,`);
+      csvRows.push(`,Size,${esc(post.size)},,`);
+      csvRows.push(`,Notes,${esc(post.notes)},,`);
+      csvRows.push(`,Inspiration,${esc(post.inspiration)},,`);
+      csvRows.push(`,Versions,,,`);
+      csvRows.push(`,Caption (Fill out if empty),${esc(post.caption)},,`);
+      csvRows.push(`,Extra notes,${esc(post.extra_notes)},,`);
+      if (i < posts.length - 1) { csvRows.push(`,,,,`); csvRows.push(`,,,,`); csvRows.push(`,,,,`); }
+    });
+    return csvRows.join("\n");
   };
-  const dlInspoCsv = () => { const b = new Blob([inspoToCsvOnly()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_visual_inspo.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+  const dlInspoCsv = () => { const b = new Blob([inspoToCsvOnly()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_organic_brief.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
   const copyInspoCsv = () => { navigator.clipboard.writeText(inspoToCsv()); setInspoCopied(true); toast.success("Copied with instructions — paste into Claude Chat"); setTimeout(() => setInspoCopied(false), 2500); };
 
   const isInspoMode = ct === "Organic" && inspoImages.length > 0;
@@ -468,29 +489,27 @@ ${csvData}`;
         </MotionDiv>
       )}
       {/* Visual Inspo Results */}
-      {inspoResult && (
+      {inspoResult && inspoResult.posts && (
         <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Visual Inspo Brief</span>
-              <Badge color="orange">3 Angles</Badge>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Organic Creative Brief</span>
+              <Badge color="orange">{inspoResult.posts.length} Posts</Badge>
             </div>
             <div className="flex gap-2">
               <Btn2 onClick={dlInspoCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
               <Btn2 onClick={copyInspoCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>{inspoCopied ? "Copied!" : "Copy as CSV"}</Btn2>
             </div>
           </div>
-          {/* Visual Analysis Banner */}
-          <Card className="overflow-hidden">
-            <div style={{ padding: "14px 20px", background: "var(--accent-bg)", borderBottom: "1px solid var(--accent-border)" }}>
-              <div className="flex items-center gap-2 mb-1"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg><span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent)" }}>Visual Hook Analysis</span></div>
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{inspoResult.visual_hook_analysis}</p>
-            </div>
-          </Card>
           <div className="space-y-2.5">
-            <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}><InspoCard angle={inspoResult.pure_despair_angle} title="Pure Despair" visual={null} color="orange" /></MotionDiv>
-            <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}><InspoCard angle={inspoResult.pure_hope_angle} title="Pure Hope" visual={null} color="green" /></MotionDiv>
-            <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}><InspoCard angle={inspoResult.bridge_angle} title="Bridge" visual={null} color="violet" /></MotionDiv>
+            {inspoResult.posts.map((post, i) => {
+              const colors = ["orange", "green", "violet"];
+              return (
+                <MotionDiv key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * (i + 1) }}>
+                  <PostBriefCard post={post} index={i} color={colors[i % colors.length]} />
+                </MotionDiv>
+              );
+            })}
           </div>
         </MotionDiv>
       )}

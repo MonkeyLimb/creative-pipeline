@@ -17,31 +17,44 @@ export async function POST(request) {
 
     const platformStr = Array.isArray(platforms) ? platforms.join(", ") : platforms;
 
-    const systemPrompt = `You are an expert direct response copywriter and social media strategist. Analyze the provided inspiration images alongside the following context:
+    const systemPrompt = `You are an expert direct response copywriter and social media content strategist. Analyze the provided inspiration images alongside the following context:
 - Program/School: ${school} — ${program}
 - Campaign Focus: ${program}
 - Target Platform: ${platformStr}
 
-Based on the visual themes and the provided context, generate an organic creative brief using the 'Selling to Feeling' framework.
+Based on the visual themes and the provided context, generate an organic creative brief with 3 post briefs.
 You must output a strict JSON object with no markdown formatting.
-Crucially, you must treat 'Pure Despair' and 'Pure Hope' as entirely separate, standalone content pieces, not combined into one formula.
+
+Each post should be a standalone content piece with clear production direction for the creative team.
 
 Output this exact JSON structure:
 {
-  "visual_hook_analysis": "Brief description of the core visual themes.",
-  "pure_despair_angle": {
-    "headline": "A hook focusing entirely on the pain point or problem.",
-    "body_copy": "Copy that agitates the negative emotion."
-  },
-  "pure_hope_angle": {
-    "headline": "A hook focusing entirely on the dream outcome.",
-    "body_copy": "Copy that paints the picture of the idealized future state."
-  },
-  "bridge_angle": {
-    "headline": "A hook connecting the current state to the solution.",
-    "body_copy": "Copy showing how the program acts as the vehicle to cross over."
-  }
-}`;
+  "posts": [
+    {
+      "post_brief": "A clear description of the post concept and what it should communicate.",
+      "required_in_post": "Specific elements that MUST be included — text overlays, music, visual style, footage type, etc.",
+      "size": "4:5",
+      "notes": "Additional creative direction, tips, or considerations for the designer/editor.",
+      "inspiration": "",
+      "versions": "",
+      "caption": "",
+      "extra_notes": ""
+    }
+  ]
+}
+
+Rules:
+- Generate exactly 3 posts in the "posts" array.
+- "post_brief" should describe the content concept clearly and concisely.
+- "required_in_post" should list specific production requirements (text overlays, music, footage type, visual style).
+- "size" should default to "4:5" unless the platform strongly suggests otherwise.
+- "notes" should include creative tips like "scroll-stopping", pacing notes, or alternative approaches.
+- "inspiration" should be left as an empty string (the user will fill this in).
+- "versions" should be left as an empty string.
+- "caption" should be left as an empty string (the user or copywriter will fill this in).
+- "extra_notes" can include scheduling reminders or cross-posting suggestions if relevant, otherwise leave empty.
+- Dreambound is the ONLY brand name. Never use school names in copy.
+- No employment guarantees, outcome promises, or words like "guarantee", "free", "dream career", "Fast Track".`;
 
     // Build content array with images and text
     const content = [];
