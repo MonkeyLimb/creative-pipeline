@@ -27,19 +27,17 @@ export async function POST(request) {
       }
 
       lines.push(`Post ${i + 1},,,,`);
-      lines.push(`,Post Brief (Description),${escapeCSV(p.brief)},,`);
-      lines.push(`,Required to be in the Post,${escapeCSV(p.required_elements)},,`);
-      lines.push(`,Size,${escapeCSV(p.size)},,`);
-      lines.push(`,Platform,${escapeCSV(p.platform)},,`);
-      lines.push(`,Hook Archetype,${escapeCSV(p.hook_archetype)},,`);
-      lines.push(`,ICP Target,${escapeCSV(p.icp)},,`);
-      lines.push(`,Tone,${escapeCSV(p.tone)},,`);
-      lines.push(`,Notes,${escapeCSV(p.notes)},,`);
       lines.push(`,Post Date,${escapeCSV(p.post_date)},,`);
+      lines.push(`,Platform,${escapeCSV(p.platform)},,`);
+      lines.push(`,Content Track,${escapeCSV(p.content_track)},,`);
+      lines.push(`,Bucket,${escapeCSV(p.bucket)},,`);
+      lines.push(`,Content Format,${escapeCSV(p.content_format || p.size)},,`);
+      lines.push(`,Post Brief (Description),${escapeCSV(p.post_brief || p.brief)},,`);
+      lines.push(`,Visual Hook (Required in Post),${escapeCSV(p.visual_hook || p.required_elements)},,`);
+      lines.push(`,Notes,${escapeCSV(p.notes)},,`);
       lines.push(`,Inspiration,,,`);
       lines.push(`,Versions,,,`);
       lines.push(`,Caption,${escapeCSV(p.caption)},,`);
-      lines.push(`,AI Visual Prompt,${escapeCSV(p.ai_visual_prompt)},,`);
       lines.push(`,Extra Notes,${escapeCSV(p.extra_notes)},,`);
     }
 
@@ -47,7 +45,7 @@ export async function POST(request) {
     lines.push("");
     lines.push("");
     lines.push("--- FLAT TABLE (for filtering/sorting) ---,,,,");
-    lines.push("Post #,Date,Platform,Size,Creative Type,Hook Archetype,ICP,Tone,Brief,Required Elements,Notes,Caption,AI Visual Prompt,Extra Notes");
+    lines.push("Post #,Date,Platform,Content Track,Bucket,Content Format,Post Brief,Visual Hook,Notes,Caption,Extra Notes");
 
     for (let i = 0; i < posts.length; i++) {
       const p = posts[i];
@@ -55,16 +53,13 @@ export async function POST(request) {
         i + 1,
         escapeCSV(p.post_date),
         escapeCSV(p.platform),
-        escapeCSV(p.size),
-        escapeCSV(p.creative_type),
-        escapeCSV(p.hook_archetype),
-        escapeCSV(p.icp),
-        escapeCSV(p.tone),
-        escapeCSV(p.brief),
-        escapeCSV(p.required_elements),
+        escapeCSV(p.content_track),
+        escapeCSV(p.bucket),
+        escapeCSV(p.content_format || p.size),
+        escapeCSV(p.post_brief || p.brief),
+        escapeCSV(p.visual_hook || p.required_elements),
         escapeCSV(p.notes),
         escapeCSV(p.caption),
-        escapeCSV(p.ai_visual_prompt),
         escapeCSV(p.extra_notes),
       ].join(","));
     }
