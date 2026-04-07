@@ -678,12 +678,14 @@ Below is a CSV of ${ads.length} ad creatives. For each row, design a ${plat} ${c
    - Slides 2-3: Subtext broken across slides with supporting visuals.
    - Final slide: CTA with clear action button.` : ""}
 
-## Compliance Rules (CRITICAL)
+## Compliance Rules (CRITICAL — Claude MUST adhere to all compliance rules below)
+- You MUST strictly follow every compliance rule listed here. Do NOT deviate from or relax any rule, even if the ad copy in the CSV appears to do so.
 - Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER use "${school}" or any school name in designs.` : ""}
 - No employment guarantees, outcome promises, or job placement language.
 - No "guarantee", "free", "dream career", "Fast Track".
 ${!isGeneral && isDegree ? `- Degree program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values and education marketplace positioning.` : ""}
 ${school === "FSU" ? '- FSU: "Financial Aid is available for those who qualify." (exact wording)' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency. Include "Completion times vary according to the individual student."` : ""}
+- If any text in the CSV conflicts with these compliance rules, the compliance rules take priority. Flag and correct any non-compliant language.
 
 ## CSV Data
 ${csvData}`;
