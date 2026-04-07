@@ -315,9 +315,45 @@ function CalendarTab() {
   // ─── Inspo CSV helpers ───
   const inspoToCsv = () => {
     if (!inspoResult) return "";
-    const h = "Angle Type,Visual Context,Headline,Body Copy";
     const esc = (v) => `"${(v || "").replace(/"/g, '""')}"`;
     const vis = inspoResult.visual_hook_analysis;
+    const platformStr = plat.join(", ");
+    const h = "Angle Type,Visual Context,Headline,Body Copy";
+    const rows = [
+      ["Despair", vis, inspoResult.pure_despair_angle.headline, inspoResult.pure_despair_angle.body_copy],
+      ["Hope", vis, inspoResult.pure_hope_angle.headline, inspoResult.pure_hope_angle.body_copy],
+      ["Bridge", vis, inspoResult.bridge_angle.headline, inspoResult.bridge_angle.body_copy],
+    ].map((r) => r.map(esc).join(","));
+    const csvData = [h, ...rows].join("\n");
+
+    const instructions = `# Dreambound Organic Content — Visual Inspo Brief
+## Context
+- School: ${school}
+- Program/Focus: ${program}
+- Platforms: ${platformStr}
+- Content Type: Organic
+- Framework: Selling to Feeling
+
+## Instructions
+Below is a CSV of 3 creative angles (Despair, Hope, Bridge) generated from visual inspiration analysis.
+For each angle, generate a ${platformStr} organic post:
+
+1. Use the Headline as the hook (first line / text overlay).
+2. Use the Body Copy as the caption or supporting text.
+3. Reference the Visual Context to inform the visual direction and mood.
+4. Each angle is a STANDALONE post — do not combine them.
+5. Dreambound is the ONLY brand name. Never use school names in copy.
+6. No employment guarantees, outcome promises, or "guarantee", "free", "dream career", "Fast Track".
+${school !== "General" && ["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `7. Degree program: use "study" and "education" only. Never "train"/"training".\n` : ""}${school !== "General" && !["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `7. Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}\n` : ""}
+## CSV Data
+${csvData}`;
+    return instructions;
+  };
+  const inspoToCsvOnly = () => {
+    if (!inspoResult) return "";
+    const esc = (v) => `"${(v || "").replace(/"/g, '""')}"`;
+    const vis = inspoResult.visual_hook_analysis;
+    const h = "Angle Type,Visual Context,Headline,Body Copy";
     const rows = [
       ["Despair", vis, inspoResult.pure_despair_angle.headline, inspoResult.pure_despair_angle.body_copy],
       ["Hope", vis, inspoResult.pure_hope_angle.headline, inspoResult.pure_hope_angle.body_copy],
@@ -325,8 +361,8 @@ function CalendarTab() {
     ].map((r) => r.map(esc).join(","));
     return [h, ...rows].join("\n");
   };
-  const dlInspoCsv = () => { const b = new Blob([inspoToCsv()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_visual_inspo.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
-  const copyInspoCsv = () => { navigator.clipboard.writeText(inspoToCsv()); setInspoCopied(true); toast.success("CSV copied to clipboard"); setTimeout(() => setInspoCopied(false), 2500); };
+  const dlInspoCsv = () => { const b = new Blob([inspoToCsvOnly()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_visual_inspo.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+  const copyInspoCsv = () => { navigator.clipboard.writeText(inspoToCsv()); setInspoCopied(true); toast.success("Copied with instructions — paste into Claude Chat"); setTimeout(() => setInspoCopied(false), 2500); };
 
   const isInspoMode = ct === "Organic" && inspoImages.length > 0;
 
@@ -561,14 +597,55 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
     return prompt;
   };
 
-  const csv = () => {
+  const csvRaw = () => {
     if (!ads.length) return "";
     const h = "Program,Hook Format,Messaging Archetype,Avatar Type,Offer Angle,Hook Text,Subtext,CTA,AI Visual Prompt";
     const rows = ads.map((a) => [program, a.hook_format, a.messaging_archetype, a.avatar_type, a.offer_angle, a.hook_text, a.subtext, a.cta, a.ai_visual_prompt].map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(","));
     return [h, ...rows].join("\n");
   };
+  const csvWithInstructions = () => {
+    if (!ads.length) return "";
+    const csvData = csvRaw();
+    const isDegree = DEGREE_SCHOOLS.includes(school);
+    const isGeneral = school === "General";
+    const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
+    const dim = dims[plat] || "1080x1350";
+    const isCarousel = fmt === "Carousel";
+
+    return `# Dreambound ${ct} Ad Creatives — Ready to Generate
+## Context
+- School: ${school}
+- Program: ${program}
+- Platform: ${plat}
+- Type: ${ct}
+- Format: ${fmt}${isCarousel ? " (Carousel)" : ""}
+- Target Size: ${dim}
+
+## Instructions
+Below is a CSV of ${ads.length} ad creatives. For each row, generate a ${plat} ${ct.toLowerCase()} ad design:
+
+1. Use "Hook Text" as the primary headline (large, bold, high contrast).
+2. Use "Subtext" as supporting body copy (smaller, below headline).
+3. Use "CTA" as a button or bottom banner text.
+4. Use "AI Visual Prompt" as the visual direction for the background/scene.${isCarousel ? `
+5. CAROUSEL format: Generate multi-page designs (3-5 slides per ad).
+   - Slide 1: Hook Text as bold headline with striking visual.
+   - Slides 2-3: Subtext broken across slides with supporting visuals.
+   - Final slide: CTA with clear action button.` : ""}
+
+## Compliance Rules (CRITICAL)
+- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER use "${school}" or any school name in designs.` : ""}
+- No employment guarantees, outcome promises, or job placement language.
+- No "guarantee", "free", "dream career", "Fast Track".
+${!isGeneral && isDegree ? `- Degree program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values and education marketplace positioning.` : ""}
+${school === "FSU" ? '- FSU: "Financial Aid is available for those who qualify." (exact wording)' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency. Include "Completion times vary according to the individual student."` : ""}
+
+## CSV Data
+${csvData}`;
+  };
   const copyPrompt = () => { navigator.clipboard.writeText(buildPrompt()); setCopied(true); toast.success("Canva prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
-  const dlCsv = () => { const b = new Blob([csv()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+  const copyCsv = () => { navigator.clipboard.writeText(csvWithInstructions()); setCopied(true); toast.success("CSV + instructions copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
+  const dlCsv = () => { const b = new Blob([csvRaw()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
   return (
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
@@ -606,7 +683,8 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
             </div>
             <div className="flex gap-2">
               <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Canva"}</button>
-              <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>CSV</Btn2>
+              <Btn2 onClick={copyCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy CSV</Btn2>
+              <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
             </div>
           </div>
           {/* Collapsible prompt preview */}
