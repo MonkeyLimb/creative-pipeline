@@ -226,6 +226,22 @@ function GuideSidebar({ open, onClose }) {
   );
 }
 
+// ─── Visual Inspo Results ───
+function InspoCard({ angle, title, visual, color = "orange" }) {
+  const colors = { orange: { bg: "var(--accent-bg)", border: "var(--accent-border)", color: "var(--accent)" }, green: { bg: "var(--green-bg)", border: "var(--green-border)", color: "var(--green)" }, violet: { bg: "var(--violet-bg)", border: "var(--violet-border)", color: "var(--violet)" } };
+  const c = colors[color] || colors.orange;
+  return (
+    <Card className="overflow-hidden">
+      <div style={{ padding: "16px 20px" }}>
+        <div className="flex items-center gap-2 mb-3"><Badge color={color}>{title}</Badge></div>
+        {visual && <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 12, lineHeight: 1.5, fontStyle: "italic" }}>{visual}</p>}
+        <div style={{ marginBottom: 8 }}><div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>Headline</div><p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", lineHeight: 1.5 }}>{angle.headline}</p></div>
+        <div><div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>Body Copy</div><p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65 }}>{angle.body_copy}</p></div>
+      </div>
+    </Card>
+  );
+}
+
 // ─── Tabs ───
 function CalendarTab() {
   const [school, setSchool] = useState("General");
@@ -246,9 +262,76 @@ function CalendarTab() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  // Visual Inspo Engine state
+  const [inspoImages, setInspoImages] = useState([]);
+  const [inspoResult, setInspoResult] = useState(null);
+  const [inspoLoading, setInspoLoading] = useState(false);
+  const [inspoCopied, setInspoCopied] = useState(false);
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
+
+  // ─── Image Upload Helpers ───
+  const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  const handleImageFiles = (files) => {
+    const valid = Array.from(files).filter((f) => ACCEPTED_TYPES.includes(f.type));
+    if (!valid.length) { toast.error("Only JPEG, PNG, and WebP images are accepted"); return; }
+    const remaining = 3 - inspoImages.length;
+    if (remaining <= 0) { toast.error("Maximum 3 images"); return; }
+    const toAdd = valid.slice(0, remaining);
+    toAdd.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setInspoImages((prev) => {
+          if (prev.length >= 3) return prev;
+          return [...prev, { file, preview: ev.target.result, mediaType: file.type }];
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  const removeImage = (idx) => setInspoImages((prev) => prev.filter((_, i) => i !== idx));
+  const handleDrop = (e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; handleImageFiles(e.dataTransfer.files); };
+  const handleDragOver = (e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--accent)"; };
+  const handleDragLeave = (e) => { e.currentTarget.style.borderColor = "var(--border)"; };
+
+  // ─── Visual Inspo Generate ───
+  const genInspo = async () => {
+    if (!inspoImages.length) { toast.error("Upload at least one inspiration image"); return; }
+    setInspoLoading(true); setInspoResult(null);
+    try {
+      const images = await Promise.all(inspoImages.map(async (img) => {
+        const dataUrl = img.preview;
+        const base64 = dataUrl.split(",")[1];
+        return { data: base64, mediaType: img.mediaType };
+      }));
+      const r = await fetch("/api/visual-inspo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ images, school, program, platforms: plat }) });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      setInspoResult(d.result);
+      toast.success("Visual analysis complete");
+    } catch (e) { toast.error(e.message); } finally { setInspoLoading(false); }
+  };
+
+  // ─── Inspo CSV helpers ───
+  const inspoToCsv = () => {
+    if (!inspoResult) return "";
+    const h = "Angle Type,Visual Context,Headline,Body Copy";
+    const esc = (v) => `"${(v || "").replace(/"/g, '""')}"`;
+    const vis = inspoResult.visual_hook_analysis;
+    const rows = [
+      ["Despair", vis, inspoResult.pure_despair_angle.headline, inspoResult.pure_despair_angle.body_copy],
+      ["Hope", vis, inspoResult.pure_hope_angle.headline, inspoResult.pure_hope_angle.body_copy],
+      ["Bridge", vis, inspoResult.bridge_angle.headline, inspoResult.bridge_angle.body_copy],
+    ].map((r) => r.map(esc).join(","));
+    return [h, ...rows].join("\n");
+  };
+  const dlInspoCsv = () => { const b = new Blob([inspoToCsv()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_visual_inspo.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+  const copyInspoCsv = () => { navigator.clipboard.writeText(inspoToCsv()); setInspoCopied(true); toast.success("CSV copied to clipboard"); setTimeout(() => setInspoCopied(false), 2500); };
+
+  const isInspoMode = ct === "Organic" && inspoImages.length > 0;
+
   const gen = async () => {
+    if (isInspoMode) { genInspo(); return; }
     setLoading(true); setPosts([]);
     try {
       const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, format: fmt, sizes, icps, tones, hooks, posts_per_day: ppd, date_mode: dateMode, dates, date_range: dr, extra_context: ctx }) });
@@ -277,8 +360,44 @@ function CalendarTab() {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
           <div><Lbl>Posts per Day</Lbl><Sel value={ppd} onChange={(v) => setPpd(Number(v))} options={PPD} /></div>
           <div className="sm:col-span-2"><Lbl>Dates</Lbl><DatePicker dates={dates} onChange={setDates} mode={dateMode} onModeChange={setDateMode} dateRange={dr} onDateRangeChange={setDr} /></div>
-          <div className="flex items-end"><Btn onClick={gen} disabled={loading || !plat.length || (dateMode === "dates" && !dates.length)}>{loading && <Spinner />}{loading ? "Generating..." : dateMode === "dates" ? `Generate ${ppd * dates.length} Posts` : `Generate Posts`}</Btn></div>
+          <div className="flex items-end"><Btn onClick={gen} disabled={(isInspoMode ? inspoLoading : loading) || !plat.length || (!isInspoMode && dateMode === "dates" && !dates.length)}>{(isInspoMode ? inspoLoading : loading) && <Spinner />}{isInspoMode ? (inspoLoading ? "Analyzing Images..." : "Analyze Inspo") : loading ? "Generating..." : dateMode === "dates" ? `Generate ${ppd * dates.length} Posts` : `Generate Posts`}</Btn></div>
         </div>
+        {/* Visual Inspo Image Upload — Organic only */}
+        <AnimatePresence>{ct === "Organic" && (
+          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
+            <div style={{ marginBottom: 4 }}>
+              <Lbl>Inspiration Images (Max 3)</Lbl>
+              <div
+                onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
+                onClick={() => { if (inspoImages.length < 3) document.getElementById("inspo-upload").click(); }}
+                className="cursor-pointer"
+                style={{ border: "2px dashed var(--border)", borderRadius: 12, padding: inspoImages.length ? "16px" : "28px 16px", textAlign: "center", transition: "border-color 0.2s, background 0.2s", background: "var(--bg-inset)" }}
+              >
+                {inspoImages.length === 0 && (
+                  <div>
+                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="var(--text-tertiary)" strokeWidth={1.5} style={{ margin: "0 auto 8px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <p style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 500 }}>Drop images here or click to upload</p>
+                    <p style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4, opacity: 0.7 }}>JPEG, PNG, WebP</p>
+                  </div>
+                )}
+                {inspoImages.length > 0 && (
+                  <div className="flex gap-3 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
+                    {inspoImages.map((img, i) => (
+                      <div key={i} style={{ position: "relative", width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
+                        <img src={img.preview} alt={`Inspo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <button onClick={(e) => { e.stopPropagation(); removeImage(i); }} className="cursor-pointer" style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: 99, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", fontSize: 11, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>&times;</button>
+                      </div>
+                    ))}
+                    {inspoImages.length < 3 && (
+                      <button onClick={() => document.getElementById("inspo-upload").click()} className="cursor-pointer" style={{ width: 72, height: 72, borderRadius: 8, border: "2px dashed var(--border)", background: "transparent", color: "var(--text-tertiary)", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                    )}
+                  </div>
+                )}
+                <input id="inspo-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display: "none" }} onChange={(e) => { handleImageFiles(e.target.files); e.target.value = ""; }} />
+              </div>
+            </div>
+          </MotionDiv>
+        )}</AnimatePresence>
         {/* Collapsible targeting options */}
         <button onClick={() => setShowMore(!showMore)} className="cursor-pointer flex items-center gap-1.5" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>
           <svg style={{ transform: showMore ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
@@ -300,6 +419,33 @@ function CalendarTab() {
           <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Calendar</span><Badge color="green">{posts.length}</Badge></div>
             <Btn2 onClick={exp} disabled={exporting}>{exporting ? <Spinner /> : <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>}{exporting ? "..." : "Export CSV"}</Btn2></div>
           <div className="space-y-2.5">{posts.map((p, i) => <PostCard key={i} post={p} i={i} />)}</div>
+        </MotionDiv>
+      )}
+      {/* Visual Inspo Results */}
+      {inspoResult && (
+        <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Visual Inspo Brief</span>
+              <Badge color="orange">3 Angles</Badge>
+            </div>
+            <div className="flex gap-2">
+              <Btn2 onClick={dlInspoCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
+              <Btn2 onClick={copyInspoCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>{inspoCopied ? "Copied!" : "Copy as CSV"}</Btn2>
+            </div>
+          </div>
+          {/* Visual Analysis Banner */}
+          <Card className="overflow-hidden">
+            <div style={{ padding: "14px 20px", background: "var(--accent-bg)", borderBottom: "1px solid var(--accent-border)" }}>
+              <div className="flex items-center gap-2 mb-1"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg><span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--accent)" }}>Visual Hook Analysis</span></div>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{inspoResult.visual_hook_analysis}</p>
+            </div>
+          </Card>
+          <div className="space-y-2.5">
+            <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}><InspoCard angle={inspoResult.pure_despair_angle} title="Pure Despair" visual={null} color="orange" /></MotionDiv>
+            <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}><InspoCard angle={inspoResult.pure_hope_angle} title="Pure Hope" visual={null} color="green" /></MotionDiv>
+            <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}><InspoCard angle={inspoResult.bridge_angle} title="Bridge" visual={null} color="violet" /></MotionDiv>
+          </div>
         </MotionDiv>
       )}
     </div>
