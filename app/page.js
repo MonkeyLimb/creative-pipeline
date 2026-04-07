@@ -196,7 +196,7 @@ function AdCard({ ad, i }) {
 // ─── Guide Sidebar ───
 function GuideSidebar({ open, onClose }) {
   const data = [
-    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Select school and program", "Pick dates or a date range with posts-per-day cadence", "Tap platforms, sizes, ICPs, tones, hooks", "Generate — AI creates compliant briefs", "Expand posts to review all details", "Export CSV for Google Sheets"] },
+    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Select school and program", "Pick dates or a date range with posts-per-day cadence", "Tap platforms, sizes, ICPs, tones, hooks", "Generate — AI creates compliant briefs", "Expand posts to review all details", "Export CSV to Google Drive"] },
     { t: "Paid Ads CSV", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", steps: ["Pick school, program, platform, type", "Select ICP targets, tones, archetypes", "Choose number of ads", "Generate compliant ad copy", "Copy for Canva — paste into Claude Chat", "Claude generates Canva designs automatically"] },
   ];
   return (
@@ -511,7 +511,7 @@ ${csvData}`;
               <Badge color="orange">{inspoResult.posts.length} Posts</Badge>
             </div>
             <div className="flex gap-2">
-              <Btn2 onClick={uploadToSheets} disabled={sheetsUploading} color="green">{sheetsUploading ? <><Spinner />{"Uploading..."}</> : <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>{"Google Sheets"}</>}</Btn2>
+              <Btn2 onClick={uploadToSheets} disabled={sheetsUploading} color="green">{sheetsUploading ? <><Spinner />{"Uploading..."}</> : <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>{"CSV to GDrive"}</>}</Btn2>
               <Btn2 onClick={dlInspoCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
               <Btn2 onClick={copyInspoCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>{inspoCopied ? "Copied!" : "Copy as CSV"}</Btn2>
             </div>
