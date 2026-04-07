@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import ContentEngineTab from "./content-engine/ContentEngineTab";
 
 const SP = {
   General: ["Brand Awareness", "Platform Growth", "Community", "Partnerships", "Events"],
@@ -781,14 +782,14 @@ export default function Home() {
       </header>
 
       <nav className="flex gap-0.5 mb-7 p-1" style={{ background: "var(--bg-raised)", borderRadius: 12, border: "1px solid var(--border)", width: "fit-content", boxShadow: "var(--card-shadow)" }}>
-        {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Ad Creatives" }].map((t) => (
+        {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Ad Creatives" }, { id: "content-engine", label: "Content Engine" }].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className="cursor-pointer" style={{ padding: "8px 18px", borderRadius: 9, fontSize: 13, fontWeight: 600, border: "none", transition: "all 0.15s", ...(tab === t.id ? { background: "var(--bg-inset)", color: "var(--text)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { background: "transparent", color: "var(--text-tertiary)" }) }}>{t.label}</button>
         ))}
       </nav>
 
       <AnimatePresence mode="wait">
         <MotionDiv key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
-          {tab === "calendar" ? <CalendarTab /> : <PaidAdsTab />}
+          {tab === "calendar" ? <CalendarTab /> : tab === "ads" ? <PaidAdsTab /> : <ContentEngineTab />}
         </MotionDiv>
       </AnimatePresence>
     </div>
