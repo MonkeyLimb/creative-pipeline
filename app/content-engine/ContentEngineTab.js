@@ -128,11 +128,28 @@ function escapeCSV(val) {
   if (str.includes(",") || str.includes('"') || str.includes("\n")) return `"${str.replace(/"/g, '""')}"`;
   return str;
 }
-const CSV_HEADERS = ["post_date", "platform", "Content_Format", "Content_Track", "Bucket_Letter", "Hook", "Body_Text", "Call_To_Action", "Suggested_Canva_Visual_Type"];
+const POST_KEYS = ["post_date", "platform", "content_format", "content_track", "bucket", "post_brief", "visual_hook", "caption", "notes"];
 
 function buildCsvString(posts) {
-  const lines = [CSV_HEADERS.join(",")];
-  for (const post of posts) lines.push(CSV_HEADERS.map((h) => escapeCSV(post[h])).join(","));
+  const lines = [];
+  lines.push(",,,,Links to final output");
+  for (let i = 0; i < posts.length; i++) {
+    const p = posts[i];
+    if (i > 0) { lines.push(",,,,"); lines.push(",,,,"); }
+    lines.push(`Post ${i + 1},,,,`);
+    lines.push(`,Post Date,${escapeCSV(p.post_date)},,`);
+    lines.push(`,Platform,${escapeCSV(p.platform)},,`);
+    lines.push(`,Content Track,${escapeCSV(p.content_track)},,`);
+    lines.push(`,Bucket,${escapeCSV(p.bucket)},,`);
+    lines.push(`,Content Format,${escapeCSV(p.content_format)},,`);
+    lines.push(`,Post Brief (Description),${escapeCSV(p.post_brief)},,`);
+    lines.push(`,Visual Hook (Required in Post),${escapeCSV(p.visual_hook)},,`);
+    lines.push(`,Notes,${escapeCSV(p.notes)},,`);
+    lines.push(`,Inspiration,,,`);
+    lines.push(`,Versions,,,`);
+    lines.push(`,Caption,${escapeCSV(p.caption)},,`);
+    lines.push(`,Extra Notes,,,`);
+  }
   return lines.join("\n");
 }
 function downloadCSV(posts, school, program) {
@@ -151,16 +168,16 @@ function EditableTable({ posts, onChange }) {
   const fields = [
     { key: "post_date", label: "Date", width: 95, editable: false },
     { key: "platform", label: "Platform", width: 75, editable: false },
-    { key: "Content_Format", label: "Format", width: 100, editable: false },
-    { key: "Content_Track", label: "Track", width: 55, editable: false },
-    { key: "Bucket_Letter", label: "Bucket", width: 60, editable: false },
-    { key: "Hook", label: "Hook", width: 170, editable: true },
-    { key: "Body_Text", label: "Body Text", width: 260, editable: true },
-    { key: "Call_To_Action", label: "CTA", width: 150, editable: true },
-    { key: "Suggested_Canva_Visual_Type", label: "Visual Type", width: 170, editable: true },
+    { key: "content_format", label: "Format", width: 100, editable: false },
+    { key: "content_track", label: "Track", width: 130, editable: false },
+    { key: "bucket", label: "Bucket", width: 140, editable: false },
+    { key: "post_brief", label: "Brief", width: 180, editable: true },
+    { key: "visual_hook", label: "Visual Hook", width: 280, editable: true },
+    { key: "caption", label: "Caption", width: 240, editable: true },
+    { key: "notes", label: "Notes", width: 120, editable: true },
   ];
   const updateCell = (rowIdx, key, value) => onChange(posts.map((p, i) => (i === rowIdx ? { ...p, [key]: value } : p)));
-  const bucketColor = (letter) => { if (["A", "B"].includes(letter)) return "red"; if (["C", "D"].includes(letter)) return "green"; if (["E", "F"].includes(letter)) return "violet"; return "orange"; };
+  const bucketColor = (bucketStr) => { const letter = (bucketStr || "").charAt(0); if (["A", "B"].includes(letter)) return "red"; if (["C", "D"].includes(letter)) return "green"; if (["E", "F"].includes(letter)) return "violet"; return "orange"; };
 
   return (
     <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--border)" }}>
@@ -185,8 +202,8 @@ function EditableTable({ posts, onChange }) {
                 </td>
               ) : (
                 <td key={f.key} style={{ padding: "8px", verticalAlign: "top", fontSize: 12, color: "var(--text-secondary)" }}>
-                  {f.key === "Bucket_Letter" ? <Badge color={bucketColor(post[f.key])}>{post[f.key]}</Badge>
-                    : f.key === "Content_Track" ? <Badge color={post[f.key] === "A" ? "violet" : "orange"}>Track {post[f.key]}</Badge>
+                  {f.key === "bucket" ? <Badge color={bucketColor(post[f.key])}>{post[f.key]}</Badge>
+                    : f.key === "content_track" ? <Badge color={post[f.key]?.includes("Program") ? "violet" : "orange"}>{post[f.key]}</Badge>
                     : post[f.key]}
                 </td>
               ))}

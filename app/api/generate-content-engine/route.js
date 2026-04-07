@@ -55,23 +55,47 @@ You MUST return a valid JSON array. Each element is an object with EXACTLY these
 {
   "post_date": "YYYY-MM-DD",
   "platform": "Instagram" | "Facebook" | "TikTok",
-  "Content_Format": "Image (4:5)" | "Image (1:1)" | "Video (9:16)" | "Video (4:5)" | "Carousel (4:5)" | "Carousel (1:1)" | etc.,
-  "Content_Track": "A" or "B",
-  "Bucket_Letter": "A" through "I",
-  "Hook": "The opening hook line that stops the scroll (under 15 words)",
-  "Body_Text": "The main body copy of the post (2-4 sentences)",
-  "Call_To_Action": "The CTA line matching the bucket's emotional tone",
-  "Suggested_Canva_Visual_Type": "Brief visual style/type description for Canva"
+  "content_format": "Image (4:5)" | "Image (1:1)" | "Video (9:16)" | "Video (4:5)" | "Carousel (4:5)" | "Carousel (1:1)" | etc.,
+  "content_track": "Program-Specific (Conversion)" or "Community (Shareability)",
+  "bucket": "<letter> — <full name>" (e.g. "H — Unpopular Opinion", "C — Emotional Validation"),
+  "post_brief": "1-sentence concept summary of the post's narrative angle",
+  "visual_hook": "DETAILED description of what the viewer SEES that stops the scroll (see rules below)",
+  "caption": "The full social media caption: hook line + short body + CTA combined (see rules below)",
+  "notes": "Optional production notes for the creative team (leave empty string if none)"
 }
+
+BUCKET FULL NAMES (use these exact labels in the "bucket" field):
+- A — Internal Conflict
+- B — Effort-Reality Gap
+- C — Emotional Validation
+- D — Motivational Reframing
+- E — Private Desire
+- F — Possible Paths Exist
+- G — Relatable Vent
+- H — Unpopular Opinion
+- I — Hype-Up
 
 RULES:
 - Each post uses ONE anchor and ONE bucket only.
 - Despair buckets (A, B) and Hope buckets (C, D) must NEVER be mixed in the same post.
 - Bridge buckets (E, F) are transitional — lean hopeful but not overtly promotional.
 - Track B posts (G, H, I) must never mention any school, program, or educational offering.
-- Hook must be punchy, scroll-stopping, and under 15 words.
-- Body_Text should be 2-4 sentences of compelling social media copy.
-- Call_To_Action should be clear, concise, and match the bucket's emotional tone.
+
+VISUAL HOOK (most important field — the visual IS the hook in social media):
+- Be EXTREMELY specific and detailed. Describe exactly what the viewer sees in the first frame.
+- Include: camera angle, subject action, text overlay placement and wording, background setting, lighting, color palette, mood, movement/animation style.
+- For video: describe the opening 1-3 seconds that stop the scroll. What is the subject doing? What text appears? What movement catches the eye?
+- For images: describe the exact composition, focal point, text placement, and visual contrast that demands attention.
+- Think like a creative director briefing a designer — give them enough detail to execute without guessing.
+- Reference specific visual styles (e.g. "iPhone selfie-cam POV", "cinematic B-roll", "split-screen before/after", "bold white all-caps text centered on dark background").
+
+CAPTION (keep it SHORT — social media users don't read essays):
+- Combine hook + body + CTA into one concise caption.
+- Hook line: punchy, scroll-stopping, under 15 words.
+- Body: 1-2 SHORT sentences max. Get to the point.
+- CTA: one clear line.
+- Total caption should feel like a text from a friend, not a blog post.
+
 - Distribute posts evenly across the provided dates and platforms.
 - Respond ONLY with the JSON array. No markdown, no preamble, no explanation.`;
 }
@@ -184,7 +208,7 @@ Return a JSON array of exactly ${totalPosts} objects.`;
     }
 
     // Validate and clean structure
-    const requiredKeys = ["post_date", "platform", "Content_Format", "Content_Track", "Bucket_Letter", "Hook", "Body_Text", "Call_To_Action", "Suggested_Canva_Visual_Type"];
+    const requiredKeys = ["post_date", "platform", "content_format", "content_track", "bucket", "post_brief", "visual_hook", "caption", "notes"];
     posts = posts.map((post) => {
       const cleaned = {};
       for (const key of requiredKeys) {
