@@ -11,6 +11,9 @@
     },
     "app/api/generate-copy/route.js": {
       "maxDuration": 60
+    },
+    "app/api/generate-content-engine/route.js": {
+      "maxDuration": 120
     }
   }
 }
