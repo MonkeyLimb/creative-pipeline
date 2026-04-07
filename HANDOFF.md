@@ -12,29 +12,56 @@ Internal web app for **Dreambound** (education marketplace) that generates compl
 
 ## Current State (What Works)
 
-### Tab 1: Content Calendar Builder
-- School/program selector with **"General" option** for non-school Dreambound brand content
-- Compact top row: type (Paid/Organic), format (Single/Carousel), platforms, sizes
-- Date range and post count as dropdowns (not chip rows)
-- Collapsible "Targeting & Context" section (ICPs, tones, hooks, extra context) — hidden by default to reduce clutter
-- Claude API (`claude-sonnet-4-6`) generates compliant content briefs
-- Expandable post cards, CSV export
+### Tab 1: Content Calendar (Wizard + Content Engine)
+A single-page stepped wizard that generates a full organic content calendar with copy already written. Powered by the **"Selling to Feeling" framework** — minimal input in, diverse content out.
 
-#### Organic Creative Brief (Visual Inspo Engine)
-When type is set to **Organic**, an image upload area appears (max 3 inspiration images). Clicking "Analyze Inspo" sends images to Claude for analysis and generates a structured **post-by-post creative brief** with these fields per post:
+#### Wizard Steps (all visible on one page):
+1. **Brief & Inspiration** — Text prompt (required) + image upload (optional, max 3). At least one must be filled.
+2. **Schedule & Platforms** — Pick dates or date range. Select Instagram, Facebook, TikTok.
+3. **School & Program** — For compliance rules and program-specific copy.
+4. **Content Format** — Optional. Specify Image/Video/Carousel counts. If skipped, AI defaults to Image (4:5) and Video (9:16).
+5. **Content Engine** — Select Track A (Conversion), Track B (Community), or Mixed. Set per-bucket quantities.
 
-| Field | Description |
-|-------|-------------|
-| **Post Brief (Description)** | Core concept and what the post should communicate |
-| **Required to be in the Post** | Specific production elements — text overlays, music, footage type, visual style |
-| **Size** | Aspect ratio (defaults to 4:5) |
-| **Notes** | Creative direction, tips, alternative approaches |
-| **Inspiration** | URL to reference post (user fills in) |
-| **Versions** | For tracking variations (user fills in) |
-| **Caption** | Post caption (user/copywriter fills in) |
-| **Extra Notes** | Scheduling reminders, cross-posting suggestions |
+#### The "Selling to Feeling" Framework (embedded in API system prompt):
 
-CSV export matches this exact spreadsheet format with `Post 1`, `Post 2`, `Post 3` sections and labeled rows. The "Copy as CSV" button includes compliance instructions for pasting into Claude Chat.
+**TRACK A: Program-Specific (Conversion)** — One anchor per post, never mix Despair and Hope.
+| Anchor | Bucket | Directive |
+|--------|--------|-----------|
+| Despair | A — Internal Conflict | Self-doubt, imposter syndrome, fear of change |
+| Despair | B — Effort-Reality Gap | Working hard but getting nowhere |
+| Hope | C — Emotional Validation | Making the reader feel seen and understood |
+| Hope | D — Motivational Reframing | Reframing stuck as starting |
+| Bridge | E — Private Desire | Quiet ambitions people don't say out loud |
+| Bridge | F — Possible Paths Exist | Gently planting seeds of possibility |
+
+**TRACK B: Non-Programmatic (Community/Shareability)** — No programs mentioned.
+| Bucket | Directive |
+|--------|-----------|
+| G — Relatable Vent | Humor about universal work struggles |
+| H — Unpopular Opinion | Hot takes on workplace/hustle culture |
+| I — Hype-Up | Quotable inspiration about refusing to settle |
+
+#### Output (editable data table):
+| CSV Column | Description |
+|------------|-------------|
+| `post_date` | Scheduled post date |
+| `platform` | Instagram, Facebook, or TikTok |
+| `Content_Format` | e.g. "Image (4:5)", "Video (9:16)", "Carousel (4:5)" |
+| `Content_Track` | A or B |
+| `Bucket_Letter` | A through I |
+| `Hook` | Scroll-stopping opening line (editable) |
+| `Body_Text` | 2-4 sentence post copy (editable) |
+| `Call_To_Action` | CTA matching bucket tone (editable) |
+| `Suggested_Canva_Visual_Type` | Visual direction for Canva (editable) |
+
+- All copy cells are **inline-editable** before export
+- **Download CSV** button exports the flat table
+- **CSV to GDrive** button uploads to Google Drive via service account
+
+#### Module Structure (isolated):
+- `app/content-engine/ContentEngineTab.js` — Full wizard UI
+- `app/api/generate-content-engine/route.js` — Claude API with framework + compliance
+- `page.js` only has 1 import + 1 render line for this module
 
 ### Tab 2: Ad Creatives
 - School/program selector with **"General" option** for brand-level content
@@ -64,18 +91,21 @@ CSV export matches this exact spreadsheet format with `Post 1`, `Post 2`, `Post 
 
 ```
 app/
-  page.js                    — Main UI (tabs, selectors, cards, theme, agent job status)
+  page.js                    — Main UI (PaidAdsTab, theme, nav — CalendarTab removed)
   layout.js                  — Root layout, fonts, sonner Toaster
   globals.css                — CSS custom properties, animations, theme tokens
+  content-engine/
+    ContentEngineTab.js        — Content Calendar wizard (5-step flow + editable table)
   api/
+    generate-content-engine/route.js — POST: Wizard generation (Selling to Feeling + scheduling + compliance)
+    generate-ads-csv/route.js   — POST: Claude generates paid ad copy
+    generate-calendar/route.js  — POST: Legacy calendar briefs (superseded by content-engine)
+    visual-inspo/route.js       — POST: Claude analyzes inspo images (legacy, integrated into content-engine)
+    upload-to-sheets/route.js   — POST: Uploads CSV to Google Drive (service account auth)
+    export-csv/route.js         — POST: Generates downloadable CSV file
     agent/
       jobs/route.js            — POST: Create agent job (proxy to backend or mock)
       jobs/[id]/route.js       — GET: Poll agent job status
-    generate-calendar/route.js  — POST: Claude generates content calendar briefs
-    generate-ads-csv/route.js   — POST: Claude generates paid ad copy
-    visual-inspo/route.js       — POST: Claude analyzes inspo images → organic creative brief (post-by-post format)
-    upload-to-sheets/route.js   — POST: Creates Google Sheet with organic brief data (service account auth)
-    export-csv/route.js         — POST: Generates downloadable CSV file
     generate-copy/route.js      — POST: Original copy generation (legacy)
     commit-row/route.js         — POST: SVG preview + Canva REST API design creation (partially working)
     canva-auth/route.js         — GET: Canva OAuth flow initiation
@@ -216,10 +246,11 @@ The `agent/` directory contains an Express server that was built for a programma
 
 ## Key Files to Read First
 
-1. `app/page.js` — The entire UI (both tabs, all components)
-2. `app/api/generate-ads-csv/route.js` — Paid ads generation with compliance rules
-3. `app/api/generate-calendar/route.js` — Content calendar generation
-4. `app/lib/canva-client.js` — Canva REST API wrapper (understand the token issue)
+1. `app/content-engine/ContentEngineTab.js` — Content Calendar wizard (the main feature)
+2. `app/api/generate-content-engine/route.js` — Selling to Feeling framework + Claude API integration
+3. `app/page.js` — Nav, theme, PaidAdsTab, primitives
+4. `app/api/generate-ads-csv/route.js` — Paid ads generation with compliance rules
+5. `app/lib/canva-client.js` — Canva REST API wrapper (understand the token issue)
 
 ---
 
