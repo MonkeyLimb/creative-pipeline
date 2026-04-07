@@ -287,6 +287,7 @@ function CalendarTab() {
   const [inspoResult, setInspoResult] = useState(null);
   const [inspoLoading, setInspoLoading] = useState(false);
   const [inspoCopied, setInspoCopied] = useState(false);
+  const [sheetsUploading, setSheetsUploading] = useState(false);
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
 
@@ -324,7 +325,7 @@ function CalendarTab() {
         const base64 = dataUrl.split(",")[1];
         return { data: base64, mediaType: img.mediaType };
       }));
-      const r = await fetch("/api/visual-inspo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ images, school, program, platforms: plat }) });
+      const r = await fetch("/api/visual-inspo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ images, school, program, platforms: plat, posts_per_day: ppd, dates, date_mode: dateMode, date_range: dr, icps, tones, hooks, extra_context: ctx }) });
       const d = await r.json();
       if (d.error) throw new Error(d.error);
       setInspoResult(d.result);
@@ -394,6 +395,17 @@ ${csvData}`;
   };
   const dlInspoCsv = () => { const b = new Blob([inspoToCsvOnly()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_organic_brief.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
   const copyInspoCsv = () => { navigator.clipboard.writeText(inspoToCsv()); setInspoCopied(true); toast.success("Copied with instructions — paste into Claude Chat"); setTimeout(() => setInspoCopied(false), 2500); };
+  const uploadToSheets = async () => {
+    if (!inspoResult || !inspoResult.posts) return;
+    setSheetsUploading(true);
+    try {
+      const r = await fetch("/api/upload-to-sheets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ posts: inspoResult.posts, school, program, platforms: plat }) });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      window.open(d.url, "_blank");
+      toast.success("Uploaded to Google Sheets");
+    } catch (e) { toast.error(e.message); } finally { setSheetsUploading(false); }
+  };
 
   const isInspoMode = ct === "Organic" && inspoImages.length > 0;
 
@@ -429,6 +441,21 @@ ${csvData}`;
           <div className="sm:col-span-2"><Lbl>Dates</Lbl><DatePicker dates={dates} onChange={setDates} mode={dateMode} onModeChange={setDateMode} dateRange={dr} onDateRangeChange={setDr} /></div>
           <div className="flex items-end"><Btn onClick={gen} disabled={(isInspoMode ? inspoLoading : loading) || !plat.length || (!isInspoMode && dateMode === "dates" && !dates.length) || (!isInspoMode && dateMode === "range" && (!dr.start || !dr.end))}>{(isInspoMode ? inspoLoading : loading) && <Spinner />}{isInspoMode ? (inspoLoading ? "Analyzing Images..." : "Analyze Inspo") : loading ? "Generating..." : dateMode === "dates" ? `Generate ${ppd * dates.length} Posts` : `Generate Posts`}</Btn></div>
         </div>
+        {/* Collapsible targeting options */}
+        <button onClick={() => setShowMore(!showMore)} className="cursor-pointer flex items-center gap-1.5" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>
+          <svg style={{ transform: showMore ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          Targeting & Context
+        </button>
+        <AnimatePresence>{showMore && (
+          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div><Lbl>ICPs</Lbl><div className="flex gap-1.5 flex-wrap">{ICPS.map((i) => <MChip key={i} label={i} active={icps.includes(i)} onClick={() => tog(icps, setIcps, i)} />)}</div></div>
+              <div><Lbl>Tones</Lbl><div className="flex gap-1.5 flex-wrap">{TONES.map((t) => <MChip key={t} label={t} active={tones.includes(t)} onClick={() => tog(tones, setTones, t)} />)}</div></div>
+              <div><Lbl>Hooks</Lbl><div className="flex gap-1.5 flex-wrap">{HOOKS.map((h) => <MChip key={h} label={h} active={hooks.includes(h)} onClick={() => tog(hooks, setHooks, h)} />)}</div></div>
+            </div>
+            <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign theme, direction..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
+          </MotionDiv>
+        )}</AnimatePresence>
         {/* Visual Inspo Image Upload — Organic only */}
         <AnimatePresence>{ct === "Organic" && (
           <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
@@ -465,21 +492,6 @@ ${csvData}`;
             </div>
           </MotionDiv>
         )}</AnimatePresence>
-        {/* Collapsible targeting options */}
-        <button onClick={() => setShowMore(!showMore)} className="cursor-pointer flex items-center gap-1.5" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>
-          <svg style={{ transform: showMore ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-          Targeting & Context
-        </button>
-        <AnimatePresence>{showMore && (
-          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div><Lbl>ICPs</Lbl><div className="flex gap-1.5 flex-wrap">{ICPS.map((i) => <MChip key={i} label={i} active={icps.includes(i)} onClick={() => tog(icps, setIcps, i)} />)}</div></div>
-              <div><Lbl>Tones</Lbl><div className="flex gap-1.5 flex-wrap">{TONES.map((t) => <MChip key={t} label={t} active={tones.includes(t)} onClick={() => tog(tones, setTones, t)} />)}</div></div>
-              <div><Lbl>Hooks</Lbl><div className="flex gap-1.5 flex-wrap">{HOOKS.map((h) => <MChip key={h} label={h} active={hooks.includes(h)} onClick={() => tog(hooks, setHooks, h)} />)}</div></div>
-            </div>
-            <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign theme, direction..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
-          </MotionDiv>
-        )}</AnimatePresence>
       </Card>
       {posts.length > 0 && (
         <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -497,6 +509,7 @@ ${csvData}`;
               <Badge color="orange">{inspoResult.posts.length} Posts</Badge>
             </div>
             <div className="flex gap-2">
+              <Btn2 onClick={uploadToSheets} disabled={sheetsUploading} color="green">{sheetsUploading ? <Spinner /> : <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>{sheetsUploading ? "Uploading..." : "Google Sheets"}</Btn2>
               <Btn2 onClick={dlInspoCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
               <Btn2 onClick={copyInspoCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>{inspoCopied ? "Copied!" : "Copy as CSV"}</Btn2>
             </div>
