@@ -15,10 +15,10 @@ export async function POST(request) {
     const jwt = await createJWT(key);
     const accessToken = await exchangeJWTForToken(jwt);
 
-    // Upload CSV to Google Drive with conversion to Google Sheets
+    // Upload CSV to Google Drive
     const metadata = {
-      name: fileName || "Organic Brief",
-      mimeType: "application/vnd.google-apps.spreadsheet", // auto-convert CSV to Sheets
+      name: (fileName || "Organic Brief") + ".csv",
+      mimeType: "text/csv",
     };
 
     const boundary = "----FormBoundary" + Date.now();
