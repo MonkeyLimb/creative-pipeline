@@ -20,6 +20,22 @@ Internal web app for **Dreambound** (education marketplace) that generates compl
 - Claude API (`claude-sonnet-4-6`) generates compliant content briefs
 - Expandable post cards, CSV export
 
+#### Organic Creative Brief (Visual Inspo Engine)
+When type is set to **Organic**, an image upload area appears (max 3 inspiration images). Clicking "Analyze Inspo" sends images to Claude for analysis and generates a structured **post-by-post creative brief** with these fields per post:
+
+| Field | Description |
+|-------|-------------|
+| **Post Brief (Description)** | Core concept and what the post should communicate |
+| **Required to be in the Post** | Specific production elements — text overlays, music, footage type, visual style |
+| **Size** | Aspect ratio (defaults to 4:5) |
+| **Notes** | Creative direction, tips, alternative approaches |
+| **Inspiration** | URL to reference post (user fills in) |
+| **Versions** | For tracking variations (user fills in) |
+| **Caption** | Post caption (user/copywriter fills in) |
+| **Extra Notes** | Scheduling reminders, cross-posting suggestions |
+
+CSV export matches this exact spreadsheet format with `Post 1`, `Post 2`, `Post 3` sections and labeled rows. The "Copy as CSV" button includes compliance instructions for pasting into Claude Chat.
+
 ### Tab 2: Ad Creatives
 - School/program selector with **"General" option** for brand-level content
 - Compact selector row: platform, type (Paid/Organic), format (**Single/Carousel**), ad count dropdown
@@ -57,6 +73,8 @@ app/
       jobs/[id]/route.js       — GET: Poll agent job status
     generate-calendar/route.js  — POST: Claude generates content calendar briefs
     generate-ads-csv/route.js   — POST: Claude generates paid ad copy
+    visual-inspo/route.js       — POST: Claude analyzes inspo images → organic creative brief (post-by-post format)
+    upload-to-sheets/route.js   — POST: Creates Google Sheet with organic brief data (service account auth)
     export-csv/route.js         — POST: Generates downloadable CSV file
     generate-copy/route.js      — POST: Original copy generation (legacy)
     commit-row/route.js         — POST: SVG preview + Canva REST API design creation (partially working)
@@ -177,6 +195,7 @@ The `agent/` directory contains an Express server that was built for a programma
 | `CANVA_REFRESH_TOKEN` | Token refresh (DO NOT auto-refresh — single-use, breaks chain) | Likely revoked |
 | `CANVA_CLIENT_ID` | Canva OAuth app | OC-AZ1RKS_XeaXO |
 | `CANVA_CLIENT_SECRET` | Canva OAuth app | Set in Vercel (not in code) |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Google service account JSON key (for Sheets upload) | Needs setup |
 | `AGENT_BASE_URL` | Legacy: agent backend URL (unused — smart prompt approach replaced this) | Not set |
 
 **Important:** The canva-client.js `getToken()` function must NOT auto-refresh. Each refresh_token is single-use — refreshing on row 1 invalidates the token for row 2. Just use the stored access token directly.

@@ -52,13 +52,36 @@ export async function POST(request) {
     const {
       school, program, platforms, creative_type,
       sizes, icps, tones, hooks,
-      date_range, post_count, extra_context,
+      posts_per_day, date_mode, dates, date_range, extra_context,
     } = body;
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const today = new Date().toISOString().split("T")[0];
-    const userMessage = `Generate a content calendar of exactly ${post_count} posts starting from ${today} for a ${date_range.toLowerCase()} period.
+    let dateInstruction, totalPosts;
+    if (date_mode === "dates" && dates?.length) {
+      totalPosts = posts_per_day * dates.length;
+      const dateList = dates.join(", ");
+      dateInstruction = `Generate posts for these specific dates: ${dateList}\nCreate exactly ${posts_per_day} post(s) per day for each date. Use the exact dates provided — do not add or skip any dates.`;
+    } else {
+      const start = date_range?.start || new Date().toISOString().split("T")[0];
+      const end = date_range?.end;
+      if (start && end) {
+        const diffMs = new Date(end) - new Date(start);
+        const days = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
+        totalPosts = posts_per_day * days;
+        dateInstruction = `Generate posts from ${start} to ${end} (${days} days).\nCreate ${posts_per_day} post(s) per day, spacing them evenly across the period.`;
+      } else {
+        // Fallback for legacy string format
+        const daysMap = { "1 Week": 7, "2 Weeks": 14, "1 Month": 30 };
+        const days = daysMap[date_range] || 7;
+        totalPosts = posts_per_day * days;
+        dateInstruction = `Generate posts starting from ${start} spread across a ${typeof date_range === "string" ? date_range.toLowerCase() : "1 week"} period.\nCreate ${posts_per_day} post(s) per day, spacing them evenly across the period.`;
+      }
+    }
+
+    const userMessage = `Generate a content calendar of exactly ${totalPosts} posts.
+
+${dateInstruction}
 
 Distribute posts across these platforms: ${platforms.join(", ")}
 Use these sizes: ${sizes.join(", ")}
@@ -67,11 +90,10 @@ Use these tones: ${tones.join(", ")}
 Use these hook archetypes: ${hooks.join(", ")}
 
 Vary the combinations — don't repeat the same ICP + tone + hook combo. Mix platforms and sizes naturally.
-Space posts evenly across the ${date_range.toLowerCase()} period (not all on the same day).
 
 ${extra_context ? `Additional context from the user:\n${extra_context}` : ""}
 
-Return exactly ${post_count} post objects in a JSON array.`;
+Return exactly ${totalPosts} post objects in a JSON array.`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",

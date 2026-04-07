@@ -19,8 +19,8 @@ const FORMATS = ["Single", "Carousel"];
 const ICPS = ["Working Adult", "Career Reset", "Ambition Blocker"];
 const TONES = ["Recognition", "Belief", "Awareness"];
 const HOOKS = ["Objection Flip", "Stat/Fact", "Day in the Life", "Pain Point", "Transformation", "Curiosity"];
-const DR = ["1 Week", "2 Weeks", "1 Month"];
-const PC = [3, 5, 7, 10, 14, 20, 30];
+const PPD = [1, 2, 3, 4, 5];
+
 const AC = [1, 3, 5, 7, 10, 15];
 
 function useTheme() {
@@ -73,6 +73,55 @@ function Spinner() { return <span className="spinner" />; }
 
 function Sel({ value, onChange, options }) {
   return <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
+}
+
+function DatePicker({ dates, onChange, mode, onModeChange, dateRange, onDateRangeChange }) {
+  const addDate = (e) => {
+    const v = e.target.value;
+    if (v && !dates.includes(v)) onChange([...dates, v].sort());
+    e.target.value = "";
+  };
+  const remove = (d) => onChange(dates.filter((x) => x !== d));
+  const fmt = (d) => { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); };
+  const today = new Date().toISOString().split("T")[0];
+  const dateInputStyle = { width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" };
+  return (
+    <div>
+      <div className="flex gap-1.5 mb-2">
+        <Chip label="Pick Dates" active={mode === "dates"} onClick={() => onModeChange("dates")} />
+        <Chip label="Date Range" active={mode === "range"} onClick={() => onModeChange("range")} />
+      </div>
+      {mode === "range" ? (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>Start</div>
+            <input type="date" min={today} value={dateRange.start || ""} onClick={(e) => e.target.showPicker?.()} onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })} style={dateInputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>End</div>
+            <input type="date" min={dateRange.start || today} value={dateRange.end || ""} onClick={(e) => e.target.showPicker?.()} onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })} style={dateInputStyle} />
+          </div>
+        </div>
+      ) : (
+        <>
+          <input type="date" min={today} onChange={addDate} onClick={(e) => e.target.showPicker?.()} style={dateInputStyle} />
+          {dates.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {dates.map((d) => (
+                <span key={d} className="flex items-center gap-1" style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 7, background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
+                  {fmt(d)}
+                  <button onClick={() => remove(d)} className="cursor-pointer" style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 13, lineHeight: 1, padding: 0 }}>&times;</button>
+                </span>
+              ))}
+              {dates.length > 1 && (
+                <button onClick={() => onChange([])} className="cursor-pointer" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: "3px 6px" }}>Clear all</button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 function SPSelect({ school, program, onS, onP }) {
@@ -144,36 +193,72 @@ function AdCard({ ad, i }) {
   );
 }
 
-// ─── Guide ───
-function Guide({ onDismiss }) {
+// ─── Guide Sidebar ───
+function GuideSidebar({ open, onClose }) {
   const data = [
-    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Select school and program", "Tap platforms, sizes, ICPs, tones, hooks", "Set date range and post count", "Generate — AI creates compliant briefs", "Expand posts to review all details", "Export CSV for Google Sheets"] },
-    { t: "Paid Ads CSV", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", steps: ["Pick school, program, platform, type", "Select ICP targets, tones, archetypes", "Choose number of ads", "Generate compliant ad copy", "Copy CSV to clipboard", "Paste into Claude AI for Canva designs"] },
+    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Select school and program", "Pick dates or a date range with posts-per-day cadence", "Tap platforms, sizes, ICPs, tones, hooks", "Generate — AI creates compliant briefs", "Expand posts to review all details", "Export CSV to Google Drive"] },
+    { t: "Paid Ads CSV", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", steps: ["Pick school, program, platform, type", "Select ICP targets, tones, archetypes", "Choose number of ads", "Generate compliant ad copy", "Copy for Canva — paste into Claude Chat", "Claude generates Canva designs automatically"] },
   ];
   return (
-    <MotionDiv initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-      <Card className="mb-8 overflow-hidden">
-        <div style={{ padding: "24px 24px 20px" }}>
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5"><div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div><span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Getting Started</span></div>
-            <button onClick={onDismiss} className="cursor-pointer" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 12px" }}>Got it</button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {data.map((s) => (
-              <div key={s.t}>
-                <div className="flex items-center gap-2 mb-3"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg><span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.t}</span></div>
-                <div className="space-y-2">{s.steps.map((step, j) => (
-                  <div key={j} className="flex gap-2.5 items-start">
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "var(--accent)", background: "var(--accent-bg)", borderRadius: 5, padding: "1px 6px", minWidth: 20, textAlign: "center", marginTop: 2 }}>{j + 1}</span>
-                    <span style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{step}</span>
-                  </div>
-                ))}</div>
+    <AnimatePresence>
+      {open && (
+        <>
+          <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 40 }} />
+          <MotionDiv initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 26, stiffness: 300 }} style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(380px, 90vw)", background: "var(--bg)", borderLeft: "1px solid var(--border)", zIndex: 50, overflowY: "auto", boxShadow: "-4px 0 24px rgba(0,0,0,0.12)" }}>
+            <div style={{ padding: "24px 20px" }}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2.5">
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>Getting Started</span>
+                </div>
+                <button onClick={onClose} className="cursor-pointer" style={{ background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px", color: "var(--text-tertiary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
-      </Card>
-    </MotionDiv>
+              <div className="space-y-8">
+                {data.map((s) => (
+                  <div key={s.t}>
+                    <div className="flex items-center gap-2 mb-3"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg><span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.t}</span></div>
+                    <div className="space-y-2.5">{s.steps.map((step, j) => (
+                      <div key={j} className="flex gap-2.5 items-start">
+                        <span style={{ fontSize: 10, fontWeight: 800, color: "var(--accent)", background: "var(--accent-bg)", borderRadius: 5, padding: "1px 6px", minWidth: 20, textAlign: "center", marginTop: 2 }}>{j + 1}</span>
+                        <span style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{step}</span>
+                      </div>
+                    ))}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </MotionDiv>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── Visual Inspo Results ───
+function BriefField({ label, value }) {
+  if (!value) return null;
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div>
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65 }}>{value}</p>
+    </div>
+  );
+}
+function PostBriefCard({ post, index, color = "orange" }) {
+  return (
+    <Card className="overflow-hidden">
+      <div style={{ padding: "16px 20px" }}>
+        <div className="flex items-center gap-2 mb-3"><Badge color={color}>Post {index + 1}</Badge>{post.size && <Badge color="green">{post.size}</Badge>}</div>
+        <div style={{ marginBottom: 8 }}><div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>Post Brief</div><p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", lineHeight: 1.5 }}>{post.post_brief}</p></div>
+        <BriefField label="Required to be in the Post" value={post.required_in_post} />
+        <BriefField label="Notes" value={post.notes} />
+        <BriefField label="Inspiration" value={post.inspiration} />
+        <BriefField label="Caption" value={post.caption} />
+        <BriefField label="Extra Notes" value={post.extra_notes} />
+      </div>
+    </Card>
   );
 }
 
@@ -187,20 +272,150 @@ function CalendarTab() {
   const [icps, setIcps] = useState(["Working Adult"]);
   const [tones, setTones] = useState(["Belief"]);
   const [hooks, setHooks] = useState(["Transformation"]);
-  const [dr, setDr] = useState("1 Week");
-  const [pc, setPc] = useState(5);
+  const [ppd, setPpd] = useState(2);
+  const [dateMode, setDateMode] = useState("dates");
+  const [dates, setDates] = useState([]);
+  const [dr, setDr] = useState({ start: "", end: "" });
   const [fmt, setFmt] = useState("Single");
   const [ctx, setCtx] = useState("");
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  // Visual Inspo Engine state
+  const [inspoImages, setInspoImages] = useState([]);
+  const [inspoResult, setInspoResult] = useState(null);
+  const [inspoLoading, setInspoLoading] = useState(false);
+  const [inspoCopied, setInspoCopied] = useState(false);
+  const [sheetsUploading, setSheetsUploading] = useState(false);
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
+
+  // ─── Image Upload Helpers ───
+  const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  const handleImageFiles = (files) => {
+    const valid = Array.from(files).filter((f) => ACCEPTED_TYPES.includes(f.type));
+    if (!valid.length) { toast.error("Only JPEG, PNG, and WebP images are accepted"); return; }
+    const remaining = 3 - inspoImages.length;
+    if (remaining <= 0) { toast.error("Maximum 3 images"); return; }
+    const toAdd = valid.slice(0, remaining);
+    toAdd.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setInspoImages((prev) => {
+          if (prev.length >= 3) return prev;
+          return [...prev, { file, preview: ev.target.result, mediaType: file.type }];
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  const removeImage = (idx) => setInspoImages((prev) => prev.filter((_, i) => i !== idx));
+  const handleDrop = (e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; handleImageFiles(e.dataTransfer.files); };
+  const handleDragOver = (e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--accent)"; };
+  const handleDragLeave = (e) => { e.currentTarget.style.borderColor = "var(--border)"; };
+
+  // ─── Visual Inspo Generate ───
+  const genInspo = async () => {
+    if (!inspoImages.length) { toast.error("Upload at least one inspiration image"); return; }
+    setInspoLoading(true); setInspoResult(null);
+    try {
+      const images = await Promise.all(inspoImages.map(async (img) => {
+        const dataUrl = img.preview;
+        const base64 = dataUrl.split(",")[1];
+        return { data: base64, mediaType: img.mediaType };
+      }));
+      const r = await fetch("/api/visual-inspo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ images, school, program, platforms: plat, posts_per_day: ppd, dates, date_mode: dateMode, date_range: dr, icps, tones, hooks, extra_context: ctx }) });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      setInspoResult(d.result);
+      toast.success("Visual analysis complete");
+    } catch (e) { toast.error(e.message); } finally { setInspoLoading(false); }
+  };
+
+  // ─── Inspo CSV helpers ───
+  const inspoToCsv = () => {
+    if (!inspoResult || !inspoResult.posts) return "";
+    const esc = (v) => `"${(v || "").replace(/"/g, '""')}"`;
+    const platformStr = plat.join(", ");
+    const posts = inspoResult.posts;
+
+    // Build CSV in the organic brief spreadsheet format
+    let csvRows = [];
+    posts.forEach((post, i) => {
+      csvRows.push(`Post ${i + 1},,,,Links to final output`);
+      csvRows.push(`,Post Brief (Description),${esc(post.post_brief)},,`);
+      csvRows.push(`,Required to be in the Post,${esc(post.required_in_post)},,`);
+      csvRows.push(`,Size,${esc(post.size)},,`);
+      csvRows.push(`,Notes,${esc(post.notes)},,`);
+      csvRows.push(`,Inspiration,${esc(post.inspiration)},,`);
+      csvRows.push(`,Versions,,,`);
+      csvRows.push(`,Caption (Fill out if empty),${esc(post.caption)},,`);
+      csvRows.push(`,Extra notes,${esc(post.extra_notes)},,`);
+      if (i < posts.length - 1) { csvRows.push(`,,,,`); csvRows.push(`,,,,`); csvRows.push(`,,,,`); }
+    });
+    const csvData = csvRows.join("\n");
+
+    const instructions = `# Dreambound Organic Creative Brief
+## Context
+- School: ${school}
+- Program/Focus: ${program}
+- Platforms: ${platformStr}
+- Content Type: Organic
+
+## Instructions
+Below is a creative brief with ${posts.length} post briefs for organic content.
+Each post has production direction for the creative team.
+
+1. Dreambound is the ONLY brand name. Never use school names in copy or designs.
+2. No employment guarantees, outcome promises, or "guarantee", "free", "dream career", "Fast Track".
+${school !== "General" && ["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `3. Degree program: use "study" and "education" only. Never "train"/"training".\n` : ""}${school !== "General" && !["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `3. Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}\n` : ""}
+## Brief Data
+${csvData}`;
+    return instructions;
+  };
+  const inspoToCsvOnly = () => {
+    if (!inspoResult || !inspoResult.posts) return "";
+    const esc = (v) => `"${(v || "").replace(/"/g, '""')}"`;
+    const posts = inspoResult.posts;
+    let csvRows = [];
+    posts.forEach((post, i) => {
+      csvRows.push(`Post ${i + 1},,,,Links to final output`);
+      csvRows.push(`,Post Brief (Description),${esc(post.post_brief)},,`);
+      csvRows.push(`,Required to be in the Post,${esc(post.required_in_post)},,`);
+      csvRows.push(`,Size,${esc(post.size)},,`);
+      csvRows.push(`,Notes,${esc(post.notes)},,`);
+      csvRows.push(`,Inspiration,${esc(post.inspiration)},,`);
+      csvRows.push(`,Versions,,,`);
+      csvRows.push(`,Caption (Fill out if empty),${esc(post.caption)},,`);
+      csvRows.push(`,Extra notes,${esc(post.extra_notes)},,`);
+      if (i < posts.length - 1) { csvRows.push(`,,,,`); csvRows.push(`,,,,`); csvRows.push(`,,,,`); }
+    });
+    return csvRows.join("\n");
+  };
+  const dlInspoCsv = () => { const b = new Blob([inspoToCsvOnly()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_organic_brief.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+  const copyInspoCsv = () => { navigator.clipboard.writeText(inspoToCsv()); setInspoCopied(true); toast.success("Copied with instructions — paste into Claude Chat"); setTimeout(() => setInspoCopied(false), 2500); };
+  const uploadToSheets = async () => {
+    if (!inspoResult || !inspoResult.posts) return;
+    setSheetsUploading(true);
+    try {
+      const csvData = inspoToCsvOnly();
+      const fileName = `${school} - ${program} - Organic Brief`;
+      const r = await fetch("/api/upload-to-sheets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csvData, fileName }) });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      window.open(d.url, "_blank");
+      toast.success("Uploaded to Google Drive");
+    } catch (e) { toast.error(e.message); } finally { setSheetsUploading(false); }
+  };
+
+  const isInspoMode = ct === "Organic" && inspoImages.length > 0;
+
   const gen = async () => {
+    if (isInspoMode) { genInspo(); return; }
     setLoading(true); setPosts([]);
     try {
-      const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, format: fmt, sizes, icps, tones, hooks, date_range: dr, post_count: pc, extra_context: ctx }) });
+      const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, format: fmt, sizes, icps, tones, hooks, posts_per_day: ppd, date_mode: dateMode, dates, date_range: dr, extra_context: ctx }) });
       const d = await r.json(); if (d.error) throw new Error(d.error);
       setPosts(d.posts); toast.success(`Generated ${d.posts.length} posts`);
     } catch (e) { toast.error(e.message); } finally { setLoading(false); }
@@ -224,9 +439,9 @@ function CalendarTab() {
           <div><Lbl>Sizes</Lbl><div className="flex gap-1.5 flex-wrap">{SIZES.map((s) => <MChip key={s} label={s} active={sizes.includes(s)} onClick={() => tog(sizes, setSizes, s)} />)}</div></div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
-          <div><Lbl>Date Range</Lbl><Sel value={dr} onChange={setDr} options={DR} /></div>
-          <div><Lbl>Posts</Lbl><Sel value={pc} onChange={(v) => setPc(Number(v))} options={PC} /></div>
-          <div className="sm:col-span-2 flex items-end"><Btn onClick={gen} disabled={loading || !plat.length}>{loading && <Spinner />}{loading ? "Generating..." : `Generate ${pc} Posts`}</Btn></div>
+          <div><Lbl>Posts per Day</Lbl><Sel value={ppd} onChange={(v) => setPpd(Number(v))} options={PPD} /></div>
+          <div className="sm:col-span-2"><Lbl>Dates</Lbl><DatePicker dates={dates} onChange={setDates} mode={dateMode} onModeChange={setDateMode} dateRange={dr} onDateRangeChange={setDr} /></div>
+          <div className="flex items-end"><Btn onClick={gen} disabled={(isInspoMode ? inspoLoading : loading) || !plat.length || (!isInspoMode && dateMode === "dates" && !dates.length) || (!isInspoMode && dateMode === "range" && (!dr.start || !dr.end))}>{(isInspoMode ? inspoLoading : loading) && <Spinner />}{isInspoMode ? (inspoLoading ? "Analyzing Images..." : "Analyze Inspo") : loading ? "Generating..." : dateMode === "dates" ? `Generate ${ppd * dates.length} Posts` : `Generate Posts`}</Btn></div>
         </div>
         {/* Collapsible targeting options */}
         <button onClick={() => setShowMore(!showMore)} className="cursor-pointer flex items-center gap-1.5" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>
@@ -243,12 +458,74 @@ function CalendarTab() {
             <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign theme, direction..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
           </MotionDiv>
         )}</AnimatePresence>
+        {/* Visual Inspo Image Upload — Organic only */}
+        <AnimatePresence>{ct === "Organic" && (
+          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
+            <div style={{ marginBottom: 4 }}>
+              <Lbl>Inspiration Images (Max 3)</Lbl>
+              <div
+                onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
+                onClick={() => { if (inspoImages.length < 3) document.getElementById("inspo-upload").click(); }}
+                className="cursor-pointer"
+                style={{ border: "2px dashed var(--border)", borderRadius: 12, padding: inspoImages.length ? "16px" : "28px 16px", textAlign: "center", transition: "border-color 0.2s, background 0.2s", background: "var(--bg-inset)" }}
+              >
+                {inspoImages.length === 0 && (
+                  <div>
+                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="var(--text-tertiary)" strokeWidth={1.5} style={{ margin: "0 auto 8px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <p style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 500 }}>Drop images here or click to upload</p>
+                    <p style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4, opacity: 0.7 }}>JPEG, PNG, WebP</p>
+                  </div>
+                )}
+                {inspoImages.length > 0 && (
+                  <div className="flex gap-3 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
+                    {inspoImages.map((img, i) => (
+                      <div key={i} style={{ position: "relative", width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
+                        <img src={img.preview} alt={`Inspo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <button onClick={(e) => { e.stopPropagation(); removeImage(i); }} className="cursor-pointer" style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: 99, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", fontSize: 11, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>&times;</button>
+                      </div>
+                    ))}
+                    {inspoImages.length < 3 && (
+                      <button onClick={() => document.getElementById("inspo-upload").click()} className="cursor-pointer" style={{ width: 72, height: 72, borderRadius: 8, border: "2px dashed var(--border)", background: "transparent", color: "var(--text-tertiary)", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                    )}
+                  </div>
+                )}
+                <input id="inspo-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display: "none" }} onChange={(e) => { handleImageFiles(e.target.files); e.target.value = ""; }} />
+              </div>
+            </div>
+          </MotionDiv>
+        )}</AnimatePresence>
       </Card>
       {posts.length > 0 && (
         <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
           <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Calendar</span><Badge color="green">{posts.length}</Badge></div>
             <Btn2 onClick={exp} disabled={exporting}>{exporting ? <Spinner /> : <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>}{exporting ? "..." : "Export CSV"}</Btn2></div>
           <div className="space-y-2.5">{posts.map((p, i) => <PostCard key={i} post={p} i={i} />)}</div>
+        </MotionDiv>
+      )}
+      {/* Visual Inspo Results */}
+      {inspoResult && inspoResult.posts && (
+        <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Organic Creative Brief</span>
+              <Badge color="orange">{inspoResult.posts.length} Posts</Badge>
+            </div>
+            <div className="flex gap-2">
+              <Btn2 onClick={uploadToSheets} disabled={sheetsUploading} color="green">{sheetsUploading ? <><Spinner />{"Uploading..."}</> : <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>{"CSV to GDrive"}</>}</Btn2>
+              <Btn2 onClick={dlInspoCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
+              <Btn2 onClick={copyInspoCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>{inspoCopied ? "Copied!" : "Copy as CSV"}</Btn2>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            {inspoResult.posts.map((post, i) => {
+              const colors = ["orange", "green", "violet"];
+              return (
+                <MotionDiv key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * (i + 1) }}>
+                  <PostBriefCard post={post} index={i} color={colors[i % colors.length]} />
+                </MotionDiv>
+              );
+            })}
+          </div>
         </MotionDiv>
       )}
     </div>
@@ -364,14 +641,56 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
     return prompt;
   };
 
-  const csv = () => {
+  const csvRaw = () => {
     if (!ads.length) return "";
     const h = "Program,Hook Format,Messaging Archetype,Avatar Type,Offer Angle,Hook Text,Subtext,CTA,AI Visual Prompt";
     const rows = ads.map((a) => [program, a.hook_format, a.messaging_archetype, a.avatar_type, a.offer_angle, a.hook_text, a.subtext, a.cta, a.ai_visual_prompt].map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(","));
     return [h, ...rows].join("\n");
   };
+  const csvWithInstructions = () => {
+    if (!ads.length) return "";
+    const csvData = csvRaw();
+    const isDegree = DEGREE_SCHOOLS.includes(school);
+    const isGeneral = school === "General";
+    const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
+    const dim = dims[plat] || "1080x1350";
+    const isCarousel = fmt === "Carousel";
+
+    return `# Dreambound ${ct} Ad Creatives — Design in Canva
+## Context
+- School: ${school}
+- Program: ${program}
+- Platform: ${plat}
+- Type: ${ct}
+- Format: ${fmt}${isCarousel ? " (Carousel)" : ""}
+- Target Size: ${dim}
+
+## Instructions
+Below is a CSV of ${ads.length} ad creatives. For each row, design a ${plat} ${ct.toLowerCase()} ad in Canva:
+
+1. Use "Hook Text" as the primary headline (large, bold, high contrast).
+2. Use "Subtext" as supporting body copy (smaller, below headline).
+3. Use "CTA" as a button or bottom banner text.
+4. Use "AI Visual Prompt" as the visual direction for the Canva design background/scene.
+5. Create each ad as a separate Canva design at ${dim}.${isCarousel ? `
+6. CAROUSEL format: Generate multi-page Canva designs (3-5 slides per ad).
+   - Slide 1: Hook Text as bold headline with striking visual.
+   - Slides 2-3: Subtext broken across slides with supporting visuals.
+   - Final slide: CTA with clear action button.` : ""}
+
+## Compliance Rules (CRITICAL)
+- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER use "${school}" or any school name in designs.` : ""}
+- No employment guarantees, outcome promises, or job placement language.
+- No "guarantee", "free", "dream career", "Fast Track".
+${!isGeneral && isDegree ? `- Degree program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values and education marketplace positioning.` : ""}
+${school === "FSU" ? '- FSU: "Financial Aid is available for those who qualify." (exact wording)' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency. Include "Completion times vary according to the individual student."` : ""}
+
+## CSV Data
+${csvData}`;
+  };
   const copyPrompt = () => { navigator.clipboard.writeText(buildPrompt()); setCopied(true); toast.success("Canva prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
-  const dlCsv = () => { const b = new Blob([csv()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+  const copyCsv = () => { navigator.clipboard.writeText(csvWithInstructions()); setCopied(true); toast.success("CSV + instructions copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
+  const dlCsv = () => { const b = new Blob([csvRaw()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
   return (
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
@@ -409,7 +728,8 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
             </div>
             <div className="flex gap-2">
               <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Canva"}</button>
-              <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>CSV</Btn2>
+              <Btn2 onClick={copyCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy CSV</Btn2>
+              <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
             </div>
           </div>
           {/* Collapsible prompt preview */}
@@ -435,25 +755,28 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
 export default function Home() {
   const { dark, toggle } = useTheme();
   const [tab, setTab] = useState("calendar");
-  const [guide, setGuide] = useState(true);
-  useEffect(() => { try { if (localStorage.getItem("guide_dismissed")) setGuide(false); } catch {} }, []);
-  const dismiss = () => { setGuide(false); try { localStorage.setItem("guide_dismissed", "1"); } catch {} };
+  const [guideOpen, setGuideOpen] = useState(false);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
+      <GuideSidebar open={guideOpen} onClose={() => setGuideOpen(false)} />
       <header className="mb-8 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-2"><div style={{ width: 7, height: 7, borderRadius: 99, background: "var(--accent)", boxShadow: "0 0 10px var(--accent-border)" }} /><span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.2em", color: "var(--accent)" }}>Dreambound</span></div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)", letterSpacing: "-0.025em", lineHeight: 1.15 }}>Creative Pipeline</h1>
           <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 6 }}>AI-powered content briefs and compliant ad copy.</p>
         </div>
-        <button onClick={toggle} className="cursor-pointer" style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 12px", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, boxShadow: "var(--card-shadow)" }}>
-          {dark ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>}
-          {dark ? "Light" : "Dark"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setGuideOpen(true)} className="cursor-pointer" style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 12px", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, boxShadow: "var(--card-shadow)" }}>
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Guide
+          </button>
+          <button onClick={toggle} className="cursor-pointer" style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 12px", color: "var(--text-secondary)", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, boxShadow: "var(--card-shadow)" }}>
+            {dark ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>}
+            {dark ? "Light" : "Dark"}
+          </button>
+        </div>
       </header>
-
-      <AnimatePresence>{guide && <Guide onDismiss={dismiss} />}</AnimatePresence>
 
       <nav className="flex gap-0.5 mb-7 p-1" style={{ background: "var(--bg-raised)", borderRadius: 12, border: "1px solid var(--border)", width: "fit-content", boxShadow: "var(--card-shadow)" }}>
         {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Ad Creatives" }].map((t) => (
