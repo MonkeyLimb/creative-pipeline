@@ -84,12 +84,15 @@ RULES:
 - Track B posts (G, H, I) must never mention any school, program, or educational offering.
 
 VISUAL HOOK (most important field — the visual IS the hook in social media):
+- We do NOT shoot talking-head or selfie-cam videos. Our creative style is TEXT ON B-ROLL.
+- All videos use thematic B-roll footage (stock, cinematic, trending) with bold text overlays. Think: mood-driven visuals with punchy on-screen text that stops the scroll.
 - Be EXTREMELY specific and detailed. Describe exactly what the viewer sees in the first frame.
-- Include: camera angle, subject action, text overlay placement and wording, background setting, lighting, color palette, mood, movement/animation style.
-- For video: describe the opening 1-3 seconds that stop the scroll. What is the subject doing? What text appears? What movement catches the eye?
-- For images: describe the exact composition, focal point, text placement, and visual contrast that demands attention.
+- For video: describe the B-roll scene (setting, movement, mood, color grade, lighting), the exact text overlay (wording, font style, placement, animation), and how they work together to stop the scroll in the first 1-3 seconds.
+- For images: describe the exact composition, focal point, text placement, font style, and visual contrast that demands attention.
+- Specify the B-roll theme (e.g. "slow-motion coffee pour in golden morning light", "aerial city timelapse at dusk", "close-up hands typing on laptop with warm bokeh", "woman walking through campus in cinematic slow-mo").
+- Specify the text overlay (e.g. "bold white all-caps centered: 'THIS IS YOUR SIGN'", "handwritten-style text fading in word by word", "split-screen with text on left, B-roll on right").
 - Think like a creative director briefing a designer — give them enough detail to execute without guessing.
-- Reference specific visual styles (e.g. "iPhone selfie-cam POV", "cinematic B-roll", "split-screen before/after", "bold white all-caps text centered on dark background").
+- NEVER suggest talking-head, direct-to-camera, or selfie-style content.
 
 CAPTION (keep it SHORT — social media users don't read essays):
 - Combine hook + body + CTA into one concise caption.
