@@ -26,7 +26,7 @@ Generate ad creatives. For each ad, respond with a JSON object containing:
   "hook_text": "the hook text / headline for the ad",
   "subtext": "supporting body copy",
   "cta": "call to action text",
-  "ai_visual_prompt": "Detailed cinematic visual description for AI background/b-roll generation. Be specific about scene, mood, lighting, camera angle.",
+  "ai_visual_prompt": "Detailed B-roll + text overlay description. We do NOT use talking-head or selfie videos. Describe: the thematic B-roll scene (setting, movement, mood, color grade, lighting), the exact on-screen text (wording, font style, placement, animation), and how they work together to stop the scroll. Be specific.",
   "compliance_notes": "any compliance flags or notes"
 }
 
@@ -50,7 +50,7 @@ Distribute across these combinations:
 Each ad must:
 - Use a different ICP + tone + hook combination (vary as much as possible)
 - Have a compelling, scroll-stopping hook
-- Include a cinematic AI visual prompt that's specific and detailed
+- Include a detailed AI visual prompt using B-roll + text overlay style (NO talking-head or selfie videos — we use thematic B-roll footage with bold on-screen text)
 - Be fully compliant with the rules above
 
 ${extra_context ? `Additional context:\n${extra_context}` : ""}
