@@ -196,12 +196,14 @@ Return a JSON array of exactly ${totalPosts} objects.`;
       messages: [{ role: "user", content }],
     });
 
-    const text = response.content[0].text;
+    let rawText = response.content[0].text.trim();
+    // Strip markdown code fences if present
+    rawText = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
     let posts;
     try {
-      posts = JSON.parse(text);
+      posts = JSON.parse(rawText);
     } catch {
-      const match = text.match(/\[[\s\S]*\]/);
+      const match = rawText.match(/\[[\s\S]*\]/);
       if (match) {
         posts = JSON.parse(match[0]);
       } else {
