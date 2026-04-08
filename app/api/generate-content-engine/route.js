@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+export const maxDuration = 300;
+
 const DEGREE_SCHOOLS = ["UMA", "SNHU", "AIU", "CTU", "FSU"];
 
 function buildSystemPrompt(programContext) {

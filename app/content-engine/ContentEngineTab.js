@@ -296,7 +296,10 @@ export default function ContentEngineTab() {
       };
 
       const res = await fetch("/api/generate-content-engine", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const data = await res.json();
+      if (res.status === 504) throw new Error("Request timed out — try generating fewer posts per batch.");
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error("Server returned an invalid response — try generating fewer posts."); }
       if (data.error) throw new Error(data.error);
       setPosts(data.posts);
       toast.success(`Generated ${data.posts.length} posts`);
