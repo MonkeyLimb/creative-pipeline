@@ -179,8 +179,6 @@ function PaidAdsTab() {
   const [copied, setCopied] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  // Phase C state
-  const [phaseC, setPhaseC] = useState({ running: false, current: -1, total: 0, results: [], error: null });
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
   const isGeneral = school === "General";
@@ -237,6 +235,28 @@ Process each ad below ONE AT A TIME. For each ad:
 3. Use move_item_to_folder to put the design in the folder from Step 1.
 4. Report the design URL before moving to the next ad.
 
+---
+
+## STEP 3: Pexels + Style (per design)
+After generating each design above, apply the Pexels image and font styling from the ad data:
+
+1. **Fetch Pexels image:** Use the Pexels API to search for the "Pexels Query" listed for each ad:
+   \`GET https://api.pexels.com/v1/search?query={pexels_query}&per_page=1\`
+   Header: \`Authorization: {PEXELS_API_KEY}\`
+   Extract: \`photos[0].src.original\`
+
+2. **Upload to Canva:** Use upload-asset-from-url with the Pexels image URL.
+
+3. **Open design for editing:** Use start-editing-transaction with the design_id from Step 2.
+
+4. **Swap image fills:** Use perform-editing-operations → update_fill with the uploaded asset_id. Apply to all fills where editable: true.
+
+5. **Apply font styling:** Use perform-editing-operations → format_text with the Font Color, Font Weight, Font Size, and Font Style listed for each ad. Apply to all richtext element_ids from the transaction.
+
+6. **Commit:** Use commit-editing-transaction.
+
+If you do NOT have a Pexels API key, skip sub-step 1 and continue with sub-steps 3–6 (font styling only).
+
 COMPLIANCE RULES (CRITICAL):
 - Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}
 - No employment guarantees, outcome promises, or job placement language.
@@ -257,14 +277,19 @@ ${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for 
 - **Subtext:** ${ad.subtext}
 - **CTA:** ${ad.cta}
 - **AI Visual Prompt:** ${ad.ai_visual_prompt}
+- **Pexels Query:** ${ad.pexels_query || "N/A"}
+- **Font Color:** ${ad.font_color || "#FFFFFF"}
+- **Font Weight:** ${ad.font_weight || "bold"}
+- **Font Size:** ${ad.font_size || 48}
+- **Font Style:** ${ad.font_style || "normal"}
 `;
     });
 
     prompt += `
 ---
 
-## STEP 3: Summary
-After all ${ads.length} designs are generated, provide a summary table:
+## STEP 4: Summary
+After all ${ads.length} designs are generated and styled, provide a summary table:
 | Ad # | Hook Text (first 30 chars) | Design URL | Status |
 |------|---------------------------|------------|--------|
 
@@ -326,49 +351,6 @@ ${csvData}`;
   const copyPrompt = () => { navigator.clipboard.writeText(buildPrompt()); setCopied(true); toast.success("Canva prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
   const copyCsv = () => { navigator.clipboard.writeText(csvWithInstructions()); setCopied(true); toast.success("CSV + instructions copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
   const dlCsv = () => { const b = new Blob([csvRaw()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
-
-  // ─── Phase C: Pexels + Style ───
-  const runPhaseC = async () => {
-    if (!ads.length) return;
-    setPhaseC({ running: true, current: 0, total: ads.length, results: [], error: null });
-    const results = [];
-    for (let i = 0; i < ads.length; i++) {
-      setPhaseC((p) => ({ ...p, current: i }));
-      try {
-        const row = ads[i];
-        const res = await fetch("/api/phase-c-row", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            row_index: i,
-            program,
-            school,
-            platform: plat,
-            design_id: row.design_id || null,
-            pexels_query: row.pexels_query || "",
-            font_color: row.font_color || "#FFFFFF",
-            font_weight: row.font_weight || "bold",
-            font_size: Number(row.font_size) || 48,
-            font_style: row.font_style || "normal",
-            hook_text: row.hook_text || "",
-          }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        results.push({ index: i, status: "completed", ...data });
-        // Emit checkpoint to console
-        console.log(`__CHECKPOINT__PEXELS__${JSON.stringify({ row: i, design_id: data.design_id || null, pexels_url: data.pexels_url || null })}`);
-        toast.success(`Row ${i + 1}/${ads.length} — Pexels + Style applied`);
-      } catch (e) {
-        results.push({ index: i, status: "failed", error: e.message });
-        toast.error(`Row ${i + 1} failed: ${e.message}`);
-      }
-      setPhaseC((p) => ({ ...p, results: [...results] }));
-    }
-    setPhaseC((p) => ({ ...p, running: false, current: -1 }));
-    toast.success(`Phase C complete — ${results.filter((r) => r.status === "completed").length}/${ads.length} rows processed`);
-  };
-
   return (
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
@@ -404,10 +386,9 @@ ${csvData}`;
               <Badge color="orange">{ads.length}</Badge>
               {fmt === "Carousel" && <Badge color="violet">Carousel</Badge>}
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Phase A: Upload + Generate"}</button>
-              <Btn2 onClick={copyCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Phase B: Edit + Organize</Btn2>
-              <button onClick={runPhaseC} disabled={phaseC.running} className="disabled:opacity-40 cursor-pointer flex items-center gap-1.5" style={{ color: "var(--violet)", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", fontWeight: 600, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s" }}>{phaseC.running ? <Spinner /> : <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}{phaseC.running ? `Phase C: ${phaseC.current + 1}/${phaseC.total}` : "Phase C: Pexels + Style"}</button>
+            <div className="flex gap-2">
+              <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Canva"}</button>
+              <Btn2 onClick={copyCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy CSV</Btn2>
               <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
             </div>
           </div>
@@ -423,32 +404,6 @@ ${csvData}`;
               </MotionDiv>
             )}</AnimatePresence>
           </Card>
-          {/* Phase C progress */}
-          {phaseC.results.length > 0 && (
-            <Card className="overflow-hidden">
-              <div style={{ padding: "12px 16px" }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Badge color="violet">Phase C</Badge>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
-                    {phaseC.running ? `Processing row ${phaseC.current + 1} of ${phaseC.total}...` : `${phaseC.results.filter((r) => r.status === "completed").length}/${phaseC.results.length} rows completed`}
-                  </span>
-                </div>
-                {/* Progress bar */}
-                <div style={{ height: 4, borderRadius: 2, background: "var(--bg-inset)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", borderRadius: 2, background: "var(--violet)", transition: "width 0.3s", width: `${(phaseC.results.length / phaseC.total) * 100}%` }} />
-                </div>
-                <div className="mt-2 space-y-1">
-                  {phaseC.results.map((r) => (
-                    <div key={r.index} className="flex items-center gap-2" style={{ fontSize: 11, color: r.status === "completed" ? "var(--green)" : "var(--text-tertiary)" }}>
-                      <span style={{ width: 6, height: 6, borderRadius: 99, background: r.status === "completed" ? "var(--green)" : "#ef4444" }} />
-                      <span>Row {r.index + 1}: {r.status === "completed" ? `Pexels image applied` : r.error}</span>
-                      {r.pexels_url && <a href={r.pexels_url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline" }}>img</a>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          )}
           <div className="space-y-2.5">{ads.map((ad, i) => <AdCard key={i} ad={ad} i={i} />)}</div>
         </MotionDiv>
       )}
