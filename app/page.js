@@ -235,25 +235,6 @@ Process each ad below ONE AT A TIME. For each ad:
 3. Use move_item_to_folder to put the design in the folder from Step 1.
 4. Report the design URL before moving to the next ad.
 
----
-
-## STEP 3: Pexels Image + Font Styling (per design)
-After generating each design, use the Pexels Query and font fields listed per ad:
-
-1. **Search Pexels:** Go to pexels.com and search for the "Pexels Query" listed for that ad. Pick the top result. Copy its direct image URL.
-
-2. **Upload to Canva:** Use upload-asset-from-url with the Pexels image URL.
-
-3. **Open design for editing:** Use start-editing-transaction with the design_id from Step 2.
-
-4. **Swap image fills:** Use perform-editing-operations → update_fill with the uploaded asset_id. Apply to all fills where editable is true.
-
-5. **Apply font styling:** Use perform-editing-operations → format_text with the Font Color, Font Weight, Font Size, and Font Style listed for that ad. Apply to all richtext element_ids from the transaction.
-
-6. **Commit:** Use commit-editing-transaction.
-
-Do this for every ad before moving to the next one.
-
 COMPLIANCE RULES (CRITICAL):
 - Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}
 - No employment guarantees, outcome promises, or job placement language.
@@ -274,7 +255,106 @@ ${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for 
 - **Subtext:** ${ad.subtext}
 - **CTA:** ${ad.cta}
 - **AI Visual Prompt:** ${ad.ai_visual_prompt}
-- **Pexels Query:** ${ad.pexels_query || "N/A"}
+`;
+    });
+
+    prompt += `
+---
+
+## STEP 3: Summary
+After all ${ads.length} designs are generated, provide a summary table:
+| Ad # | Hook Text (first 30 chars) | Design URL | Status |
+|------|---------------------------|------------|--------|
+
+Then confirm: "All ${ads.length} designs generated and organized in the '${folderName}' folder."
+`;
+
+    return prompt;
+  };
+
+  // ─── Build the Pexels + Style prompt (stock photo alternative to AI generation) ───
+  const buildPexelsPrompt = () => {
+    if (!ads.length) return "";
+    const isDegree = DEGREE_SCHOOLS.includes(school);
+    const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
+    const dim = dims[plat] || "1080x1350";
+    const isCarousel = fmt === "Carousel";
+    const folderName = isGeneral ? `Dreambound - ${program} - ${plat} ${ct} (Pexels)` : `${school} - ${program} - ${plat} ${ct} (Pexels)`;
+
+    let prompt = `# Dreambound Canva Design Job — Pexels Stock Photo
+## STEP 0: Verify Canva MCP Connection
+Before doing anything else, confirm you have access to Canva MCP tools. Try listing your available tools and verify you can see: generate_design, perform_editing_operations, create_folder, move_item_to_folder, upload_asset_from_url, start_editing_transaction, commit_editing_transaction, and get_design.
+
+If you do NOT have Canva connected:
+- Tell me "Canva MCP is not connected. Please enable it in your MCP settings first."
+- Stop here. Do not proceed.
+
+If you DO have Canva connected, say "Canva MCP verified." and proceed to Step 1.
+
+---
+
+## STEP 1: Create Folder
+Create a Canva folder named: "${folderName}"
+Save the folder ID for organizing designs later.
+
+---
+
+## STEP 2: Build Designs from Pexels Stock Photos
+Process each ad below ONE AT A TIME. For each ad:
+
+1. **Search Pexels:** Go to pexels.com and search for the "Pexels Query" listed for that ad. Pick the top result. Copy its direct image URL.
+
+2. **Upload to Canva:** Use upload-asset-from-url with the Pexels image URL. Name it after the ad (e.g. "Ad 1 - {first few words of hook}").
+
+3. **Create a design:** Use generate_design. Target size: ${dim}. Make it a ${plat} ${ct.toLowerCase()} ad. Use the Pexels image as the primary background/visual.${isCarousel ? `
+   - This is a CAROUSEL. Generate a multi-page design (3-5 slides per ad).
+   - Slide 1: Hook Text as bold headline over the Pexels image.
+   - Slides 2-3: Subtext broken across slides with the stock photo as background.
+   - Final slide: CTA with clear action button/text.
+   - Keep visual theme consistent across all slides.` : ""}
+
+4. **Open design for editing:** Use start-editing-transaction with the design_id.
+
+5. **Set the Pexels image as background fill:** Use perform-editing-operations → update_fill with the uploaded asset_id. Apply to all image fills where editable is true.
+
+6. **Add and style the text elements:**${isCarousel ? `
+   - Distribute text across slides as described above.` : `
+   - Hook Text as the primary headline (large, bold, high contrast)
+   - Subtext as supporting body copy (smaller, below headline)
+   - CTA as button or bottom banner text (clear, actionable)`}
+   Then use perform-editing-operations → format_text to apply the font styling listed for that ad:
+   - color: Font Color (hex)
+   - font_weight: Font Weight
+   - font_size: Font Size (px)
+   - font_style: Font Style
+   Apply to ALL richtext element_ids in the design.
+
+7. **Commit:** Use commit-editing-transaction.
+
+8. Use move_item_to_folder to put the design in the folder from Step 1.
+
+9. Report the design URL before moving to the next ad.
+
+COMPLIANCE RULES (CRITICAL):
+- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}
+- No employment guarantees, outcome promises, or job placement language.
+- No "guarantee", "free", "dream career", "Fast Track".
+${!isGeneral && isDegree ? `- This is a DEGREE program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- This is a CERTIFICATE program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values, education marketplace positioning, and aspirational messaging.` : ""}
+${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for those who qualify." (exact wording)\n' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency language. Include "Completion times vary according to the individual student."\n` : ""}
+---
+
+## ADS TO CREATE (${ads.length} total${isCarousel ? " — CAROUSEL format" : ""})
+`;
+
+    ads.forEach((ad, i) => {
+      prompt += `
+### Ad ${i + 1} of ${ads.length}
+- **Hook Format:** ${ad.hook_format}
+- **Messaging Archetype:** ${ad.messaging_archetype}
+- **Hook Text:** ${ad.hook_text}
+- **Subtext:** ${ad.subtext}
+- **CTA:** ${ad.cta}
+- **Pexels Query:** ${ad.pexels_query || "stock photo professional"}
 - **Font Color:** ${ad.font_color || "#FFFFFF"}
 - **Font Weight:** ${ad.font_weight || "bold"}
 - **Font Size:** ${ad.font_size || 48}
@@ -285,12 +365,12 @@ ${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for 
     prompt += `
 ---
 
-## STEP 4: Summary
-After all ${ads.length} designs are generated and styled, provide a summary table:
-| Ad # | Hook Text (first 30 chars) | Design URL | Status |
-|------|---------------------------|------------|--------|
+## STEP 3: Summary
+After all ${ads.length} designs are created, provide a summary table:
+| Ad # | Hook Text (first 30 chars) | Pexels Query | Design URL | Status |
+|------|---------------------------|--------------|------------|--------|
 
-Then confirm: "All ${ads.length} designs generated and organized in the '${folderName}' folder."
+Then confirm: "All ${ads.length} designs created with Pexels stock photos and organized in the '${folderName}' folder."
 `;
 
     return prompt;
@@ -346,6 +426,7 @@ ${school === "FSU" ? '- FSU: "Financial Aid is available for those who qualify."
 ${csvData}`;
   };
   const copyPrompt = () => { navigator.clipboard.writeText(buildPrompt()); setCopied(true); toast.success("Canva prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
+  const copyPexelsPrompt = () => { navigator.clipboard.writeText(buildPexelsPrompt()); setCopied(true); toast.success("Pexels + Style prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
   const copyCsv = () => { navigator.clipboard.writeText(csvWithInstructions()); setCopied(true); toast.success("CSV + instructions copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
   const dlCsv = () => { const b = new Blob([csvRaw()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
   return (
@@ -383,8 +464,9 @@ ${csvData}`;
               <Badge color="orange">{ads.length}</Badge>
               {fmt === "Carousel" && <Badge color="violet">Carousel</Badge>}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Canva"}</button>
+              <button onClick={copyPexelsPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "var(--violet)", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>{copied ? "Copied!" : "Pexels + Style"}</button>
               <Btn2 onClick={copyCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy CSV</Btn2>
               <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
             </div>
