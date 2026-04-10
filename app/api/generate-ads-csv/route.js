@@ -27,6 +27,11 @@ Generate ad creatives. For each ad, respond with a JSON object containing:
   "subtext": "supporting body copy",
   "cta": "call to action text",
   "ai_visual_prompt": "Detailed B-roll + text overlay description. We do NOT use talking-head or selfie videos. Describe: the thematic B-roll scene (setting, movement, mood, color grade, lighting), the exact on-screen text (wording, font style, placement, animation), and how they work together to stop the scroll. Be specific.",
+  "pexels_query": "2-5 word search query for Pexels stock photo API. Choose evocative, literal scene descriptions (e.g. 'clean clinic room' not 'healthcare'). Avoid brand names, people's faces, text overlays. Focus on setting/environment/mood.",
+  "font_color": "hex color for headline text, e.g. #FFFFFF or #1A1A2E. Pick for contrast against the likely Pexels image.",
+  "font_weight": "bold or normal",
+  "font_size": "integer font size in px, e.g. 48, 36, 64. Larger for short hooks, smaller for longer text.",
+  "font_style": "normal or italic",
   "compliance_notes": "any compliance flags or notes"
 }
 

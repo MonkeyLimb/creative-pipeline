@@ -109,7 +109,7 @@ function AdCard({ ad, i }) {
         <AnimatePresence>{open && (
           <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
             <div style={{ padding: "0 20px 16px", borderTop: "1px solid var(--border-subtle)" }}>
-              <div style={{ paddingTop: 8 }}><DetailRow label="CTA" value={ad.cta} /><DetailRow label="Avatar Type" value={ad.avatar_type} /><DetailRow label="Offer Angle" value={ad.offer_angle} /><DetailRow label="AI Visual Prompt" value={ad.ai_visual_prompt} /><DetailRow label="Compliance" value={ad.compliance_notes} /></div>
+              <div style={{ paddingTop: 8 }}><DetailRow label="CTA" value={ad.cta} /><DetailRow label="Avatar Type" value={ad.avatar_type} /><DetailRow label="Offer Angle" value={ad.offer_angle} /><DetailRow label="AI Visual Prompt" value={ad.ai_visual_prompt} /><DetailRow label="Pexels Query" value={ad.pexels_query} /><DetailRow label="Font Style" value={ad.font_color && `${ad.font_color} · ${ad.font_weight} · ${ad.font_size}px · ${ad.font_style}`} /><DetailRow label="Compliance" value={ad.compliance_notes} /></div>
             </div>
           </MotionDiv>
         )}</AnimatePresence>
@@ -235,6 +235,25 @@ Process each ad below ONE AT A TIME. For each ad:
 3. Use move_item_to_folder to put the design in the folder from Step 1.
 4. Report the design URL before moving to the next ad.
 
+---
+
+## STEP 3: Pexels Image + Font Styling (per design)
+After generating each design, use the Pexels Query and font fields listed per ad:
+
+1. **Search Pexels:** Go to pexels.com and search for the "Pexels Query" listed for that ad. Pick the top result. Copy its direct image URL.
+
+2. **Upload to Canva:** Use upload-asset-from-url with the Pexels image URL.
+
+3. **Open design for editing:** Use start-editing-transaction with the design_id from Step 2.
+
+4. **Swap image fills:** Use perform-editing-operations → update_fill with the uploaded asset_id. Apply to all fills where editable is true.
+
+5. **Apply font styling:** Use perform-editing-operations → format_text with the Font Color, Font Weight, Font Size, and Font Style listed for that ad. Apply to all richtext element_ids from the transaction.
+
+6. **Commit:** Use commit-editing-transaction.
+
+Do this for every ad before moving to the next one.
+
 COMPLIANCE RULES (CRITICAL):
 - Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}
 - No employment guarantees, outcome promises, or job placement language.
@@ -255,14 +274,19 @@ ${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for 
 - **Subtext:** ${ad.subtext}
 - **CTA:** ${ad.cta}
 - **AI Visual Prompt:** ${ad.ai_visual_prompt}
+- **Pexels Query:** ${ad.pexels_query || "N/A"}
+- **Font Color:** ${ad.font_color || "#FFFFFF"}
+- **Font Weight:** ${ad.font_weight || "bold"}
+- **Font Size:** ${ad.font_size || 48}
+- **Font Style:** ${ad.font_style || "normal"}
 `;
     });
 
     prompt += `
 ---
 
-## STEP 3: Summary
-After all ${ads.length} designs are generated, provide a summary table:
+## STEP 4: Summary
+After all ${ads.length} designs are generated and styled, provide a summary table:
 | Ad # | Hook Text (first 30 chars) | Design URL | Status |
 |------|---------------------------|------------|--------|
 
@@ -274,8 +298,8 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
 
   const csvRaw = () => {
     if (!ads.length) return "";
-    const h = "Program,Hook Format,Messaging Archetype,Avatar Type,Offer Angle,Hook Text,Subtext,CTA,AI Visual Prompt";
-    const rows = ads.map((a) => [program, a.hook_format, a.messaging_archetype, a.avatar_type, a.offer_angle, a.hook_text, a.subtext, a.cta, a.ai_visual_prompt].map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(","));
+    const h = "Program,Hook Format,Messaging Archetype,Avatar Type,Offer Angle,Hook Text,Subtext,CTA,AI Visual Prompt,Pexels Query,Font Color,Font Weight,Font Size,Font Style";
+    const rows = ads.map((a) => [program, a.hook_format, a.messaging_archetype, a.avatar_type, a.offer_angle, a.hook_text, a.subtext, a.cta, a.ai_visual_prompt, a.pexels_query, a.font_color, a.font_weight, a.font_size, a.font_style].map((v) => `"${(String(v || "")).replace(/"/g, '""')}"`).join(","));
     return [h, ...rows].join("\n");
   };
   const csvWithInstructions = () => {
