@@ -109,7 +109,7 @@ function AdCard({ ad, i }) {
         <AnimatePresence>{open && (
           <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
             <div style={{ padding: "0 20px 16px", borderTop: "1px solid var(--border-subtle)" }}>
-              <div style={{ paddingTop: 8 }}><DetailRow label="CTA" value={ad.cta} /><DetailRow label="Avatar Type" value={ad.avatar_type} /><DetailRow label="Offer Angle" value={ad.offer_angle} /><DetailRow label="AI Visual Prompt" value={ad.ai_visual_prompt} /><DetailRow label="Compliance" value={ad.compliance_notes} /></div>
+              <div style={{ paddingTop: 8 }}><DetailRow label="CTA" value={ad.cta} /><DetailRow label="Avatar Type" value={ad.avatar_type} /><DetailRow label="Offer Angle" value={ad.offer_angle} /><DetailRow label="AI Visual Prompt" value={ad.ai_visual_prompt} /><DetailRow label="Pexels Query" value={ad.pexels_query} /><DetailRow label="Font Style" value={ad.font_color && `${ad.font_color} · ${ad.font_weight} · ${ad.font_size}px · ${ad.font_style}`} /><DetailRow label="Compliance" value={ad.compliance_notes} /></div>
             </div>
           </MotionDiv>
         )}</AnimatePresence>
@@ -179,6 +179,8 @@ function PaidAdsTab() {
   const [copied, setCopied] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  // Phase C state
+  const [phaseC, setPhaseC] = useState({ running: false, current: -1, total: 0, results: [], error: null });
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
   const isGeneral = school === "General";
@@ -274,8 +276,8 @@ Then confirm: "All ${ads.length} designs generated and organized in the '${folde
 
   const csvRaw = () => {
     if (!ads.length) return "";
-    const h = "Program,Hook Format,Messaging Archetype,Avatar Type,Offer Angle,Hook Text,Subtext,CTA,AI Visual Prompt";
-    const rows = ads.map((a) => [program, a.hook_format, a.messaging_archetype, a.avatar_type, a.offer_angle, a.hook_text, a.subtext, a.cta, a.ai_visual_prompt].map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(","));
+    const h = "Program,Hook Format,Messaging Archetype,Avatar Type,Offer Angle,Hook Text,Subtext,CTA,AI Visual Prompt,Pexels Query,Font Color,Font Weight,Font Size,Font Style";
+    const rows = ads.map((a) => [program, a.hook_format, a.messaging_archetype, a.avatar_type, a.offer_angle, a.hook_text, a.subtext, a.cta, a.ai_visual_prompt, a.pexels_query, a.font_color, a.font_weight, a.font_size, a.font_style].map((v) => `"${(String(v || "")).replace(/"/g, '""')}"`).join(","));
     return [h, ...rows].join("\n");
   };
   const csvWithInstructions = () => {
@@ -324,6 +326,49 @@ ${csvData}`;
   const copyPrompt = () => { navigator.clipboard.writeText(buildPrompt()); setCopied(true); toast.success("Canva prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
   const copyCsv = () => { navigator.clipboard.writeText(csvWithInstructions()); setCopied(true); toast.success("CSV + instructions copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
   const dlCsv = () => { const b = new Blob([csvRaw()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+
+  // ─── Phase C: Pexels + Style ───
+  const runPhaseC = async () => {
+    if (!ads.length) return;
+    setPhaseC({ running: true, current: 0, total: ads.length, results: [], error: null });
+    const results = [];
+    for (let i = 0; i < ads.length; i++) {
+      setPhaseC((p) => ({ ...p, current: i }));
+      try {
+        const row = ads[i];
+        const res = await fetch("/api/phase-c-row", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            row_index: i,
+            program,
+            school,
+            platform: plat,
+            design_id: row.design_id || null,
+            pexels_query: row.pexels_query || "",
+            font_color: row.font_color || "#FFFFFF",
+            font_weight: row.font_weight || "bold",
+            font_size: Number(row.font_size) || 48,
+            font_style: row.font_style || "normal",
+            hook_text: row.hook_text || "",
+          }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        results.push({ index: i, status: "completed", ...data });
+        // Emit checkpoint to console
+        console.log(`__CHECKPOINT__PEXELS__${JSON.stringify({ row: i, design_id: data.design_id || null, pexels_url: data.pexels_url || null })}`);
+        toast.success(`Row ${i + 1}/${ads.length} — Pexels + Style applied`);
+      } catch (e) {
+        results.push({ index: i, status: "failed", error: e.message });
+        toast.error(`Row ${i + 1} failed: ${e.message}`);
+      }
+      setPhaseC((p) => ({ ...p, results: [...results] }));
+    }
+    setPhaseC((p) => ({ ...p, running: false, current: -1 }));
+    toast.success(`Phase C complete — ${results.filter((r) => r.status === "completed").length}/${ads.length} rows processed`);
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
@@ -359,9 +404,10 @@ ${csvData}`;
               <Badge color="orange">{ads.length}</Badge>
               {fmt === "Carousel" && <Badge color="violet">Carousel</Badge>}
             </div>
-            <div className="flex gap-2">
-              <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Canva"}</button>
-              <Btn2 onClick={copyCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy CSV</Btn2>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Phase A: Upload + Generate"}</button>
+              <Btn2 onClick={copyCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Phase B: Edit + Organize</Btn2>
+              <button onClick={runPhaseC} disabled={phaseC.running} className="disabled:opacity-40 cursor-pointer flex items-center gap-1.5" style={{ color: "var(--violet)", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", fontWeight: 600, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s" }}>{phaseC.running ? <Spinner /> : <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}{phaseC.running ? `Phase C: ${phaseC.current + 1}/${phaseC.total}` : "Phase C: Pexels + Style"}</button>
               <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
             </div>
           </div>
@@ -377,6 +423,32 @@ ${csvData}`;
               </MotionDiv>
             )}</AnimatePresence>
           </Card>
+          {/* Phase C progress */}
+          {phaseC.results.length > 0 && (
+            <Card className="overflow-hidden">
+              <div style={{ padding: "12px 16px" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge color="violet">Phase C</Badge>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                    {phaseC.running ? `Processing row ${phaseC.current + 1} of ${phaseC.total}...` : `${phaseC.results.filter((r) => r.status === "completed").length}/${phaseC.results.length} rows completed`}
+                  </span>
+                </div>
+                {/* Progress bar */}
+                <div style={{ height: 4, borderRadius: 2, background: "var(--bg-inset)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", borderRadius: 2, background: "var(--violet)", transition: "width 0.3s", width: `${(phaseC.results.length / phaseC.total) * 100}%` }} />
+                </div>
+                <div className="mt-2 space-y-1">
+                  {phaseC.results.map((r) => (
+                    <div key={r.index} className="flex items-center gap-2" style={{ fontSize: 11, color: r.status === "completed" ? "var(--green)" : "var(--text-tertiary)" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 99, background: r.status === "completed" ? "var(--green)" : "#ef4444" }} />
+                      <span>Row {r.index + 1}: {r.status === "completed" ? `Pexels image applied` : r.error}</span>
+                      {r.pexels_url && <a href={r.pexels_url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline" }}>img</a>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
           <div className="space-y-2.5">{ads.map((ad, i) => <AdCard key={i} ad={ad} i={i} />)}</div>
         </MotionDiv>
       )}

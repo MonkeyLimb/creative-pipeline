@@ -108,6 +108,109 @@ async function processJob(job) {
   console.log(`[JOB] ${job.id} finished — ${job.completed}/${job.total} succeeded`);
 }
 
+// ─── Phase C: Pexels + Style (single row) ───
+app.post("/v1/phase-c", async (req, res) => {
+  const { row_index, design_id, pexels_url, font_color, font_weight, font_size, font_style, program, school, platform, hook_text } = req.body;
+
+  if (!design_id || !pexels_url) {
+    return res.status(400).json({ error: "design_id and pexels_url are required" });
+  }
+
+  console.log(`[PHASE-C] Row ${row_index}: design=${design_id}, pexels=${pexels_url}`);
+
+  try {
+    const result = await processPhaseCRow({ design_id, pexels_url, font_color, font_weight, font_size, font_style, program, hook_text });
+    console.log(`[PHASE-C] Row ${row_index} completed: asset_id=${result.asset_id}`);
+    res.json(result);
+  } catch (err) {
+    console.error(`[PHASE-C] Row ${row_index} failed: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function processPhaseCRow({ design_id, pexels_url, font_color, font_weight, font_size, font_style, program, hook_text }) {
+  return new Promise((resolve, reject) => {
+    const prompt = buildPhaseCPrompt({ design_id, pexels_url, font_color, font_weight, font_size, font_style, program, hook_text });
+
+    const child = spawn(CLAUDE_PATH, [
+      "--print",
+      "--output-format", "json",
+      "--max-turns", "20",
+      "--allowedTools", "mcp__canva__upload_asset_from_url,mcp__canva__start_editing_transaction,mcp__canva__perform_editing_operations,mcp__canva__commit_editing_transaction,mcp__canva__get_design",
+      "-p", prompt,
+    ], {
+      cwd: process.env.AGENT_WORK_DIR || path.join(__dirname, "workspace"),
+      timeout: 300000,
+      env: { ...process.env },
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (d) => { stdout += d.toString(); });
+    child.stderr.on("data", (d) => { stderr += d.toString(); });
+
+    child.on("close", (code) => {
+      if (code !== 0) {
+        return reject(new Error(`Claude CLI exited with code ${code}: ${stderr.slice(0, 500)}`));
+      }
+
+      // Try to extract asset_id from output
+      try {
+        const parsed = JSON.parse(stdout);
+        const text = parsed.result || parsed.content || JSON.stringify(parsed);
+        const assetMatch = text.match(/"asset_id"\s*:\s*"([^"]+)"/);
+        resolve({ asset_id: assetMatch ? assetMatch[1] : null });
+      } catch {
+        const assetMatch = stdout.match(/"asset_id"\s*:\s*"([^"]+)"/);
+        resolve({ asset_id: assetMatch ? assetMatch[1] : null });
+      }
+    });
+
+    child.on("error", (err) => {
+      reject(new Error(`Failed to spawn claude CLI: ${err.message}`));
+    });
+  });
+}
+
+function buildPhaseCPrompt({ design_id, pexels_url, font_color, font_weight, font_size, font_style, program, hook_text }) {
+  return `You are applying a Pexels stock photo and font styling to an existing Canva design for Dreambound.
+
+Design ID: ${design_id}
+Pexels Image URL: ${pexels_url}
+
+Steps — execute in this exact order:
+
+1. Upload the Pexels image to Canva:
+   Use upload_asset_from_url with:
+   - name: "${program || "creative"} - pexels"
+   - url: "${pexels_url}"
+   Save the returned asset_id.
+
+2. Open the design for editing:
+   Use start_editing_transaction with design_id: "${design_id}"
+   Save the returned transaction data including element IDs.
+
+3. Swap all editable image fills with the uploaded Pexels image:
+   Use perform_editing_operations with type: "update_fill"
+   - asset_id: the uploaded Pexels asset ID
+   - Apply to ALL fill elements where editable is true
+
+4. Apply font styling to all text elements:
+   Use perform_editing_operations with type: "format_text"
+   - color: "${font_color || "#FFFFFF"}"
+   - font_weight: "${font_weight || "bold"}"
+   - font_size: ${Number(font_size) || 48}
+   - font_style: "${font_style || "normal"}"
+   - Apply to ALL richtext element_ids from the transaction
+
+5. Commit the changes:
+   Use commit_editing_transaction
+
+After completing, output a JSON object on a single line:
+{"asset_id": "<the uploaded pexels asset id>", "status": "committed"}`;
+}
+
 // ─── Process a single row via Claude CLI + Canva MCP ───
 function processRow(job, row) {
   return new Promise((resolve, reject) => {
@@ -224,5 +327,6 @@ app.listen(PORT, () => {
   console.log(`\n  Endpoints:`);
   console.log(`    GET  /v1/health`);
   console.log(`    POST /v1/jobs`);
-  console.log(`    GET  /v1/jobs/:id\n`);
+  console.log(`    GET  /v1/jobs/:id`);
+  console.log(`    POST /v1/phase-c\n`);
 });
