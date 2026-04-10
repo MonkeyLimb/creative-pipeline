@@ -237,25 +237,22 @@ Process each ad below ONE AT A TIME. For each ad:
 
 ---
 
-## STEP 3: Pexels + Style (per design)
-After generating each design above, apply the Pexels image and font styling from the ad data:
+## STEP 3: Pexels Image + Font Styling (per design)
+After generating each design, use the Pexels Query and font fields listed per ad:
 
-1. **Fetch Pexels image:** Use the Pexels API to search for the "Pexels Query" listed for each ad:
-   \`GET https://api.pexels.com/v1/search?query={pexels_query}&per_page=1\`
-   Header: \`Authorization: {PEXELS_API_KEY}\`
-   Extract: \`photos[0].src.original\`
+1. **Search Pexels:** Go to pexels.com and search for the "Pexels Query" listed for that ad. Pick the top result. Copy its direct image URL.
 
 2. **Upload to Canva:** Use upload-asset-from-url with the Pexels image URL.
 
 3. **Open design for editing:** Use start-editing-transaction with the design_id from Step 2.
 
-4. **Swap image fills:** Use perform-editing-operations → update_fill with the uploaded asset_id. Apply to all fills where editable: true.
+4. **Swap image fills:** Use perform-editing-operations → update_fill with the uploaded asset_id. Apply to all fills where editable is true.
 
-5. **Apply font styling:** Use perform-editing-operations → format_text with the Font Color, Font Weight, Font Size, and Font Style listed for each ad. Apply to all richtext element_ids from the transaction.
+5. **Apply font styling:** Use perform-editing-operations → format_text with the Font Color, Font Weight, Font Size, and Font Style listed for that ad. Apply to all richtext element_ids from the transaction.
 
 6. **Commit:** Use commit-editing-transaction.
 
-If you do NOT have a Pexels API key, skip sub-step 1 and continue with sub-steps 3–6 (font styling only).
+Do this for every ad before moving to the next one.
 
 COMPLIANCE RULES (CRITICAL):
 - Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}
