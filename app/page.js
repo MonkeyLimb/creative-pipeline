@@ -391,7 +391,7 @@ export default function Home() {
       </header>
 
       <nav className="flex gap-0.5 mb-7 p-1" style={{ background: "var(--bg-raised)", borderRadius: 12, border: "1px solid var(--border)", width: "fit-content", boxShadow: "var(--card-shadow)" }}>
-        {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Ad Creatives" }, { id: "content-engine", label: "Content Engine" }].map((t) => (
+        {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Ad Creatives" }].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className="cursor-pointer" style={{ padding: "8px 18px", borderRadius: 9, fontSize: 13, fontWeight: 600, border: "none", transition: "all 0.15s", ...(tab === t.id ? { background: "var(--bg-inset)", color: "var(--text)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { background: "transparent", color: "var(--text-tertiary)" }) }}>{t.label}</button>
         ))}
       </nav>
