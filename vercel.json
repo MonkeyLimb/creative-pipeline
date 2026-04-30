@@ -1,18 +1,6 @@
 {
   "functions": {
-    "app/api/generate-candidates/route.js": {
-      "maxDuration": 120
-    },
-    "app/api/finalize-design/route.js": {
-      "maxDuration": 120
-    },
     "app/api/commit-row/route.js": {
-      "maxDuration": 120
-    },
-    "app/api/generate-copy/route.js": {
-      "maxDuration": 60
-    },
-    "app/api/generate-content-engine/route.js": {
       "maxDuration": 120
     }
   }

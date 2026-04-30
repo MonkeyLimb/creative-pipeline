@@ -3,7 +3,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-// ─── School/Program mapping (mirrored from main page) ───
+// ─── School/Program mapping ───
 const SP = {
   General: ["Brand Awareness", "Platform Growth", "Community", "Partnerships", "Events"],
   UMA: ["Clinical Medical Assistant", "Healthcare Management", "Healthcare Administration", "Medical Billing and Coding", "Health and Human Services", "Medical Administrative Assistant", "Pharmacy Technician", "Health Information Technology"],
@@ -13,6 +13,7 @@ const SP = {
   Herzing: ["Sterile Processing Technician"], MedCerts: ["Phlebotomy Technician", "EKG Technician"],
 };
 const SCHOOLS = Object.keys(SP);
+const PLATFORMS = ["Instagram", "Facebook", "TikTok"];
 
 // ─── Bucket definitions ───
 const TRACK_A_BUCKETS = [
@@ -23,90 +24,78 @@ const TRACK_A_BUCKETS = [
   { letter: "E", anchor: "Bridge", label: "Private Desire", color: "violet" },
   { letter: "F", anchor: "Bridge", label: "Possible Paths Exist", color: "violet" },
 ];
-
 const TRACK_B_BUCKETS = [
   { letter: "G", anchor: "Community", label: "Relatable Vent", color: "orange" },
   { letter: "H", anchor: "Community", label: "Unpopular Opinion", color: "orange" },
   { letter: "I", anchor: "Community", label: "Hype-Up", color: "orange" },
 ];
 
-// ─── Primitives (matching main app style) ───
-const MotionDiv = motion.div;
+const FORMAT_OPTIONS = ["Image", "Video", "Carousel"];
 
-function Card({ children, className = "" }) {
+// ─── Primitives (matching main app) ───
+const MotionDiv = motion.div;
+function Card({ children, className = "" }) { return <div className={className} style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 16, boxShadow: "var(--card-shadow)" }}>{children}</div>; }
+function Lbl({ children }) { return <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-tertiary)", marginBottom: 8 }}>{children}</div>; }
+function Chip({ label, active, onClick }) { return <button onClick={onClick} className="relative cursor-pointer" style={{ padding: "6px 14px", borderRadius: 99, fontSize: 12, fontWeight: 600, border: "1px solid transparent", transition: "all 0.2s", ...(active ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)", boxShadow: "var(--accent-glow)" } : { background: "var(--bg-inset)", color: "var(--text-secondary)", borderColor: "var(--border)" }) }}>{label}</button>; }
+function MChip({ label, active, onClick }) { return <button onClick={onClick} className="cursor-pointer flex items-center gap-1.5" style={{ padding: "6px 14px", borderRadius: 99, fontSize: 12, fontWeight: 500, transition: "all 0.2s", ...(active ? { background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent-border)" } : { background: "var(--bg-inset)", color: "var(--text-tertiary)", border: "1px solid var(--border)" }) }}>{active && <span style={{ width: 5, height: 5, borderRadius: 99, background: "var(--accent)" }} />}{label}</button>; }
+function Btn({ onClick, disabled, children }) { return <button onClick={onClick} disabled={disabled} className="disabled:opacity-40 cursor-pointer flex items-center gap-2" style={{ background: "var(--accent)", color: "#fff", fontWeight: 700, padding: "11px 24px", borderRadius: 12, fontSize: 13, border: "none", boxShadow: "var(--accent-glow)", transition: "all 0.15s", letterSpacing: "0.01em" }}>{children}</button>; }
+function Sel({ value, onChange, options }) { return <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>; }
+
+// ─── Step Header ───
+function StepHeader({ number, title, subtitle }) {
   return (
-    <div className={className} style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 16, boxShadow: "var(--card-shadow)" }}>
-      {children}
+    <div className="flex items-center gap-3 mb-4">
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accent-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "var(--accent)", flexShrink: 0 }}>{number}</div>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{title}</div>
+        {subtitle && <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 1 }}>{subtitle}</div>}
+      </div>
     </div>
   );
 }
 
-function Lbl({ children }) {
-  return <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-tertiary)", marginBottom: 8 }}>{children}</div>;
-}
-
-function Chip({ label, active, onClick }) {
+// ─── DatePicker ───
+function DatePicker({ dates, onChange, mode, onModeChange, dateRange, onDateRangeChange }) {
+  const addDate = (e) => { const v = e.target.value; if (v && !dates.includes(v)) onChange([...dates, v].sort()); e.target.value = ""; };
+  const remove = (d) => onChange(dates.filter((x) => x !== d));
+  const fmt = (d) => { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); };
+  const today = new Date().toISOString().split("T")[0];
+  const dateInputStyle = { width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" };
   return (
-    <button onClick={onClick} className="relative cursor-pointer" style={{ padding: "6px 14px", borderRadius: 99, fontSize: 12, fontWeight: 600, border: "1px solid transparent", transition: "all 0.2s", ...(active ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)", boxShadow: "var(--accent-glow)" } : { background: "var(--bg-inset)", color: "var(--text-secondary)", borderColor: "var(--border)" }) }}>
-      {label}
-    </button>
+    <div>
+      <div className="flex gap-1.5 mb-2">
+        <Chip label="Pick Dates" active={mode === "dates"} onClick={() => onModeChange("dates")} />
+        <Chip label="Date Range" active={mode === "range"} onClick={() => onModeChange("range")} />
+      </div>
+      {mode === "range" ? (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>Start</div>
+            <input type="date" min={today} value={dateRange.start || ""} onClick={(e) => e.target.showPicker?.()} onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })} style={dateInputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>End</div>
+            <input type="date" min={dateRange.start || today} value={dateRange.end || ""} onClick={(e) => e.target.showPicker?.()} onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })} style={dateInputStyle} />
+          </div>
+        </div>
+      ) : (
+        <>
+          <input type="date" min={today} onChange={addDate} onClick={(e) => e.target.showPicker?.()} style={dateInputStyle} />
+          {dates.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {dates.map((d) => (
+                <span key={d} className="flex items-center gap-1" style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 7, background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
+                  {fmt(d)}
+                  <button onClick={() => remove(d)} className="cursor-pointer" style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 13, lineHeight: 1, padding: 0 }}>&times;</button>
+                </span>
+              ))}
+              {dates.length > 1 && <button onClick={() => onChange([])} className="cursor-pointer" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: "3px 6px" }}>Clear all</button>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
-}
-
-function Btn({ onClick, disabled, children }) {
-  return (
-    <button onClick={onClick} disabled={disabled} className="disabled:opacity-40 cursor-pointer flex items-center gap-2" style={{ background: "var(--accent)", color: "#fff", fontWeight: 700, padding: "11px 24px", borderRadius: 12, fontSize: 13, border: "none", boxShadow: "var(--accent-glow)", transition: "all 0.15s", letterSpacing: "0.01em" }}>
-      {children}
-    </button>
-  );
-}
-
-function Btn2({ onClick, disabled, children, color = "green" }) {
-  const c = { green: { color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" }, violet: { color: "var(--violet)", bg: "var(--violet-bg)", border: "var(--violet-border)" } };
-  const s = c[color];
-  return (
-    <button onClick={onClick} disabled={disabled} className="disabled:opacity-40 cursor-pointer flex items-center gap-1.5" style={{ color: s.color, background: s.bg, border: `1px solid ${s.border}`, fontWeight: 600, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s" }}>
-      {children}
-    </button>
-  );
-}
-
-function Spinner() { return <span className="spinner" />; }
-
-function Sel({ value, onChange, options }) {
-  return <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
-}
-
-function Badge({ children, color = "default" }) {
-  const c = { default: { bg: "var(--bg-inset)", color: "var(--text-tertiary)", border: "var(--border)" }, orange: { bg: "var(--accent-bg)", color: "var(--accent)", border: "var(--accent-border)" }, green: { bg: "var(--green-bg)", color: "var(--green)", border: "var(--green-border)" }, violet: { bg: "var(--violet-bg)", color: "var(--violet)", border: "var(--violet-border)" }, red: { bg: "var(--red-bg)", color: "var(--red)", border: "var(--red-border)" } };
-  const s = c[color] || c.default;
-  return <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 6, background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>{children}</span>;
-}
-
-// ─── CSV helpers ───
-function escapeCSV(val) {
-  if (!val) return "";
-  const str = String(val);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function downloadCSV(posts) {
-  const headers = ["Content_Track", "Bucket_Letter", "Hook", "Body_Text", "Call_To_Action", "Suggested_Canva_Visual_Type"];
-  const lines = [headers.join(",")];
-  for (const post of posts) {
-    lines.push(headers.map((h) => escapeCSV(post[h])).join(","));
-  }
-  const csv = lines.join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `content_engine_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 // ─── Bucket Quantity Row ───
@@ -115,9 +104,7 @@ function BucketRow({ bucket, count, onChange }) {
   const bgMap = { red: "var(--red-bg)", green: "var(--green-bg)", violet: "var(--violet-bg)", orange: "var(--accent-bg)" };
   return (
     <div className="flex items-center gap-3" style={{ padding: "8px 0" }}>
-      <div style={{ width: 28, height: 28, borderRadius: 8, background: bgMap[bucket.color], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: colorMap[bucket.color], flexShrink: 0 }}>
-        {bucket.letter}
-      </div>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: bgMap[bucket.color], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: colorMap[bucket.color], flexShrink: 0 }}>{bucket.letter}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{bucket.label}</div>
         <div style={{ fontSize: 10, color: "var(--text-tertiary)" }}>{bucket.anchor}</div>
@@ -131,159 +118,255 @@ function BucketRow({ bucket, count, onChange }) {
   );
 }
 
-// ─── Editable Data Table ───
-function EditableTable({ posts, onChange }) {
-  const fields = [
-    { key: "Content_Track", label: "Track", width: 60, editable: false },
-    { key: "Bucket_Letter", label: "Bucket", width: 65, editable: false },
-    { key: "Hook", label: "Hook", width: 180, editable: true },
-    { key: "Body_Text", label: "Body Text", width: 280, editable: true },
-    { key: "Call_To_Action", label: "CTA", width: 160, editable: true },
-    { key: "Suggested_Canva_Visual_Type", label: "Visual Type", width: 180, editable: true },
+// ─── Build the prompt for Claude.ai ───
+const DEGREE_SCHOOLS = ["UMA", "SNHU", "AIU", "CTU", "FSU"];
+const TRACK_DESCRIPTION = `THE "SELLING TO FEELING" FRAMEWORK
+ABSOLUTE RULE: One anchor per creative, one bucket per post. Despair and Hope must NEVER be mixed in the same post.
+
+TRACK A: Program-Specific (Conversion)
+- Anchor 1: DESPAIR
+  • Bucket A — Internal Conflict: Self-doubt, imposter syndrome, fear of change.
+  • Bucket B — Effort-Reality Gap: Working hard but getting nowhere.
+- Anchor 2: HOPE
+  • Bucket C — Emotional Validation: Make the reader feel seen and understood.
+  • Bucket D — Motivational Reframing: Reframe stuck as starting.
+- Anchor 3: BRIDGE
+  • Bucket E — Private Desire: Quiet ambitions people don't say out loud.
+  • Bucket F — Possible Paths Exist: Plant seeds of possibility without hard-selling.
+
+TRACK B: Non-Programmatic (Community/Shareability) — Ignore programs entirely.
+- Bucket G — Relatable Vent: Humor about universal work struggles.
+- Bucket H — Unpopular Opinion: Hot takes on workplace/hustle culture.
+- Bucket I — Hype-Up: Quotable inspiration about refusing to settle.`;
+
+function buildComplianceBlock(school, program) {
+  if (!school) return "";
+  const isDegree = DEGREE_SCHOOLS.includes(school);
+  const lines = [
+    `COMPLIANCE RULES`,
+    `- School: ${school} | Program: ${program}`,
+    `- Dreambound is the ONLY public brand. Never mention school names in copy.`,
+    `- No employment guarantees, outcome promises, or job placement language.`,
+    `- No "guarantee", "free", "dream career", "Fast Track".`,
+    isDegree
+      ? `- Degree program: use "study" and "education" only. Never "train"/"training". "Career" must pair with "path" or "journey".`
+      : `- Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}`,
   ];
-
-  const updateCell = (rowIdx, key, value) => {
-    const updated = posts.map((p, i) => (i === rowIdx ? { ...p, [key]: value } : p));
-    onChange(updated);
-  };
-
-  const bucketColor = (letter) => {
-    if (["A", "B"].includes(letter)) return "red";
-    if (["C", "D"].includes(letter)) return "green";
-    if (["E", "F"].includes(letter)) return "violet";
-    return "orange";
-  };
-
-  return (
-    <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--border)" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead>
-          <tr>
-            <th style={{ padding: "10px 8px", textAlign: "left", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", background: "var(--bg-inset)", borderBottom: "1px solid var(--border)", position: "sticky", top: 0 }}>
-              #
-            </th>
-            {fields.map((f) => (
-              <th key={f.key} style={{ padding: "10px 8px", textAlign: "left", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", background: "var(--bg-inset)", borderBottom: "1px solid var(--border)", minWidth: f.width, position: "sticky", top: 0 }}>
-                {f.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {posts.map((post, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
-              <td style={{ padding: "8px", color: "var(--text-tertiary)", fontWeight: 600, verticalAlign: "top" }}>{i + 1}</td>
-              {fields.map((f) =>
-                f.editable ? (
-                  <td key={f.key} style={{ padding: "4px", verticalAlign: "top" }}>
-                    <textarea
-                      value={post[f.key] || ""}
-                      onChange={(e) => updateCell(i, f.key, e.target.value)}
-                      rows={3}
-                      style={{
-                        width: "100%",
-                        minWidth: f.width,
-                        background: "transparent",
-                        border: "1px solid transparent",
-                        borderRadius: 6,
-                        padding: "6px 8px",
-                        fontSize: 12,
-                        color: "var(--text)",
-                        resize: "vertical",
-                        outline: "none",
-                        lineHeight: 1.5,
-                        fontFamily: "'Inter', system-ui, sans-serif",
-                        transition: "border-color 0.15s",
-                      }}
-                      onFocus={(e) => { e.target.style.borderColor = "var(--accent-border)"; e.target.style.background = "var(--bg-inset)"; }}
-                      onBlur={(e) => { e.target.style.borderColor = "transparent"; e.target.style.background = "transparent"; }}
-                    />
-                  </td>
-                ) : (
-                  <td key={f.key} style={{ padding: "8px", verticalAlign: "top" }}>
-                    <Badge color={f.key === "Bucket_Letter" ? bucketColor(post[f.key]) : "default"}>
-                      {f.key === "Content_Track" ? `Track ${post[f.key]}` : `Bucket ${post[f.key]}`}
-                    </Badge>
-                  </td>
-                )
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  if (school === "FSU") lines.push(`- Financial aid line: "Financial Aid is available for those who qualify."`);
+  else lines.push(`- Financial aid line: "Financial aid may be available for those who qualify."`);
+  if (school === "AIU" || school === "CTU") lines.push(`- No urgency language. Always include: "Completion times vary according to the individual student."`);
+  return lines.join("\n");
 }
 
-// ─── Main Component ───
-export default function ContentEngineTab() {
-  // Track selection
-  const [trackMode, setTrackMode] = useState("A");
+function buildContentPrompt({ trackMode, school, program, buckets, brief, dates, dateMode, dateRange, platforms, formatMix }) {
+  const totalPosts = Object.values(buckets).reduce((sum, n) => sum + n, 0);
+  const bucketBreakdown = Object.entries(buckets)
+    .filter(([, count]) => count > 0)
+    .map(([letter, count]) => `- Bucket ${letter}: ${count} post(s)`)
+    .join("\n");
 
-  // Program context (Track A only)
+  let dateInstruction = "";
+  if (dateMode === "dates" && dates?.length) {
+    dateInstruction = `Distribute posts across these exact dates: ${dates.join(", ")}`;
+  } else if (dateMode === "range" && dateRange?.start && dateRange?.end) {
+    dateInstruction = `Distribute posts evenly from ${dateRange.start} to ${dateRange.end}`;
+  }
+
+  let formatInstruction;
+  if (formatMix && Object.values(formatMix).some((v) => v > 0)) {
+    const parts = Object.entries(formatMix)
+      .filter(([, count]) => count > 0)
+      .map(([fmt, count]) => `${count} ${fmt}`)
+      .join(", ");
+    formatInstruction = `Content format distribution: ${parts}. Assign formats to posts accordingly.`;
+  } else {
+    formatInstruction = `Assign content formats to each post. Default to "Image (4:5)" for image posts and "Video (9:16)" for video posts. Mix both image and video formats for variety.`;
+  }
+
+  const programLine =
+    trackMode !== "B" && school && program
+      ? `Program Context: ${school} — ${program}\nWeave the program/field into Track A copy naturally without naming the school directly.`
+      : "";
+  const briefLine = brief ? `Creative Brief / Direction:\n${brief}` : "";
+  const compliance = trackMode !== "B" ? buildComplianceBlock(school, program) : "";
+
+  return `# Dreambound Content Calendar — Generate ${totalPosts} Posts
+You are an expert social media copywriter and content calendar strategist for Dreambound, an education marketing brand. You operate under the "Selling to Feeling" framework. Your job is to generate a full organic content calendar with copy already written for each post.
+
+═══════════════════════════════════════════
+${TRACK_DESCRIPTION}
+═══════════════════════════════════════════
+${compliance ? `\n${compliance}\n` : ""}
+OUTPUT FORMAT:
+Return a markdown table with these columns: Post Date, Platform, Content Format, Content Track, Bucket, Post Brief, Visual Hook, Caption, Notes.
+
+BUCKET FULL NAMES (use these exact labels):
+- A — Internal Conflict
+- B — Effort-Reality Gap
+- C — Emotional Validation
+- D — Motivational Reframing
+- E — Private Desire
+- F — Possible Paths Exist
+- G — Relatable Vent
+- H — Unpopular Opinion
+- I — Hype-Up
+
+RULES:
+- Each post uses ONE anchor and ONE bucket only.
+- Despair buckets (A, B) and Hope buckets (C, D) must NEVER be mixed in the same post.
+- Bridge buckets (E, F) lean hopeful but not overtly promotional.
+- Track B posts (G, H, I) must never mention any school, program, or educational offering.
+
+VISUAL HOOK (most important field — the visual IS the hook in social media):
+- We do NOT shoot talking-head or selfie-cam videos. Our creative style is TEXT ON B-ROLL.
+- All videos use thematic B-roll footage (stock, cinematic, trending) with bold text overlays.
+- Be EXTREMELY specific. Describe the B-roll scene (setting, movement, mood, color grade, lighting), the exact text overlay (wording, font style, placement, animation), and how they work together to stop the scroll in the first 1-3 seconds.
+- For images: describe composition, focal point, text placement, font style, and visual contrast.
+- NEVER suggest talking-head, direct-to-camera, or selfie-style content.
+
+CAPTION (keep it SHORT — social media users don't read essays):
+- Hook line: punchy, scroll-stopping, under 15 words.
+- Body: 1-2 SHORT sentences max.
+- CTA: one clear line.
+- Total caption should feel like a text from a friend, not a blog post.
+
+═══════════════════════════════════════════
+JOB PARAMETERS
+═══════════════════════════════════════════
+
+Generate exactly ${totalPosts} organic social media posts.
+
+BUCKET DISTRIBUTION (follow exactly):
+${bucketBreakdown}
+
+${dateInstruction}
+Platforms to use: ${platforms.join(", ")}
+${formatInstruction}
+${programLine}
+${briefLine}
+
+Each post must strictly follow its assigned bucket's emotional directive. Vary hooks, angles, visual suggestions, and formats across posts for maximum content diversity.`;
+}
+
+// ─── Main Wizard Component ───
+export default function ContentEngineTab() {
+  // Step 1: Brief
+  const [brief, setBrief] = useState("");
+  // Step 2: Schedule
+  const [platforms, setPlatforms] = useState(["Instagram"]);
+  const [dateMode, setDateMode] = useState("dates");
+  const [dates, setDates] = useState([]);
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  // Step 3: Program
   const [school, setSchool] = useState("General");
   const [program, setProgram] = useState(SP["General"][0]);
-
-  // Bucket quantities
+  // Step 4: Format Mix
+  const [formatCounts, setFormatCounts] = useState({ Image: 0, Video: 0, Carousel: 0 });
+  // Step 5: Content Engine
+  const [trackMode, setTrackMode] = useState("mixed");
   const [bucketCounts, setBucketCounts] = useState({ A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, I: 0 });
+  // Output
+  const [copied, setCopied] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
-  // Results
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(false);
-
+  const tog = (arr, setter, val) => setter((p) => p.includes(val) ? p.filter((x) => x !== val) : [...p, val]);
   const schoolChange = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
 
-  const setBucketCount = (letter, count) => {
-    setBucketCounts((prev) => ({ ...prev, [letter]: count }));
+  const totalBucketCount = () => {
+    const active = trackMode === "A" ? ["A","B","C","D","E","F"] : trackMode === "B" ? ["G","H","I"] : ["A","B","C","D","E","F","G","H","I"];
+    return active.reduce((sum, l) => sum + (bucketCounts[l] || 0), 0);
   };
-
-  const totalCount = () => {
-    const activeBuckets = trackMode === "A" ? ["A", "B", "C", "D", "E", "F"] : trackMode === "B" ? ["G", "H", "I"] : ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
-    return activeBuckets.reduce((sum, l) => sum + (bucketCounts[l] || 0), 0);
-  };
-
-  const generate = async () => {
-    const activeBuckets = trackMode === "A" ? ["A", "B", "C", "D", "E", "F"] : trackMode === "B" ? ["G", "H", "I"] : ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
-    const filteredBuckets = {};
-    for (const l of activeBuckets) {
-      if (bucketCounts[l] > 0) filteredBuckets[l] = bucketCounts[l];
-    }
-
-    if (Object.keys(filteredBuckets).length === 0) {
-      toast.error("Set at least one bucket quantity.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const payload = {
-        trackMode,
-        programContext: trackMode !== "B" ? { school, program } : null,
-        buckets: filteredBuckets,
-      };
-
-      const res = await fetch("/api/generate-content-engine", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const data = await res.json();
-
-      if (data.error) throw new Error(data.error);
-
-      setPosts(data.posts);
-      toast.success(`Generated ${data.posts.length} posts.`);
-    } catch (err) {
-      toast.error(err.message || "Generation failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const activeBuckets = trackMode === "A" ? TRACK_A_BUCKETS : trackMode === "B" ? TRACK_B_BUCKETS : [...TRACK_A_BUCKETS, ...TRACK_B_BUCKETS];
+
+  const promptParams = () => {
+    const activeBucketLetters = trackMode === "A" ? ["A","B","C","D","E","F"] : trackMode === "B" ? ["G","H","I"] : ["A","B","C","D","E","F","G","H","I"];
+    const filteredBuckets = {};
+    for (const l of activeBucketLetters) { if (bucketCounts[l] > 0) filteredBuckets[l] = bucketCounts[l]; }
+    return {
+      trackMode, school, program,
+      buckets: filteredBuckets,
+      brief: brief.trim(),
+      dates, dateMode, dateRange, platforms,
+      formatMix: Object.values(formatCounts).some((v) => v > 0) ? formatCounts : null,
+    };
+  };
+
+  // Validation
+  const hasDates = dateMode === "dates" ? dates.length > 0 : (dateRange.start && dateRange.end);
+  const hasBrief = brief.trim().length > 0;
+  const canCopy = hasBrief && hasDates && platforms.length > 0 && totalBucketCount() > 0;
+
+  const copyPrompt = () => {
+    if (!canCopy) return;
+    navigator.clipboard.writeText(buildContentPrompt(promptParams()));
+    setCopied(true);
+    toast.success("Prompt copied — paste into Claude.ai");
+    setTimeout(() => setCopied(false), 2500);
+  };
 
   return (
     <div className="space-y-5">
-      {/* ─── Config Card ─── */}
+
+      {/* ─── Step 1: Brief ─── */}
       <Card>
-        <div style={{ padding: 24 }} className="space-y-6">
-          {/* Track Selection */}
+        <div style={{ padding: 24 }} className="space-y-4">
+          <StepHeader number={1} title="Creative Brief" subtitle="Describe the campaign direction, tone, or anything Claude should know." />
+          <div>
+            <Lbl>Creative Brief / Direction</Lbl>
+            <textarea value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="e.g. Q3 push for working adults considering a career change. Lean hopeful, lots of relatable mid-week venting." rows={3}
+              style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical", fontFamily: "'Inter', system-ui, sans-serif" }} />
+          </div>
+        </div>
+      </Card>
+
+      {/* ─── Step 2: Schedule & Platforms ─── */}
+      <Card>
+        <div style={{ padding: 24 }} className="space-y-4">
+          <StepHeader number={2} title="Schedule & Platforms" subtitle="When and where to post." />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><Lbl>Dates</Lbl><DatePicker dates={dates} onChange={setDates} mode={dateMode} onModeChange={setDateMode} dateRange={dateRange} onDateRangeChange={setDateRange} /></div>
+            <div><Lbl>Platforms</Lbl><div className="flex gap-1.5 flex-wrap">{PLATFORMS.map((p) => <MChip key={p} label={p} active={platforms.includes(p)} onClick={() => tog(platforms, setPlatforms, p)} />)}</div></div>
+          </div>
+        </div>
+      </Card>
+
+      {/* ─── Step 3: School & Program ─── */}
+      <Card>
+        <div style={{ padding: 24 }} className="space-y-4">
+          <StepHeader number={3} title="School & Program" subtitle="Used for compliance and program-specific copy." />
+          <div className="grid grid-cols-2 gap-3">
+            <div><Lbl>School</Lbl><Sel value={school} onChange={schoolChange} options={SCHOOLS} /></div>
+            <div><Lbl>{school === "General" ? "Focus" : "Program"}</Lbl><Sel value={program} onChange={setProgram} options={SP[school] || []} /></div>
+          </div>
+        </div>
+      </Card>
+
+      {/* ─── Step 4: Content Format (Optional) ─── */}
+      <Card>
+        <div style={{ padding: 24 }} className="space-y-4">
+          <StepHeader number={4} title="Content Format" subtitle="Optional. Skip to let AI assign (defaults: Image 4:5, Video 9:16)." />
+          <div className="grid grid-cols-3 gap-4">
+            {FORMAT_OPTIONS.map((fmt) => (
+              <div key={fmt}>
+                <Lbl>{fmt}</Lbl>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setFormatCounts((p) => ({ ...p, [fmt]: Math.max(0, p[fmt] - 1) }))} className="cursor-pointer" style={{ width: 28, height: 28, borderRadius: 6, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-secondary)", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                  <div style={{ width: 36, textAlign: "center", fontSize: 15, fontWeight: 700, color: formatCounts[fmt] > 0 ? "var(--text)" : "var(--text-tertiary)" }}>{formatCounts[fmt]}</div>
+                  <button onClick={() => setFormatCounts((p) => ({ ...p, [fmt]: Math.min(20, p[fmt] + 1) }))} className="cursor-pointer" style={{ width: 28, height: 28, borderRadius: 6, background: "var(--bg-inset)", border: "1px solid var(--border)", color: "var(--text-secondary)", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {Object.values(formatCounts).every((v) => v === 0) && (
+            <p style={{ fontSize: 11, color: "var(--text-tertiary)", fontStyle: "italic" }}>No formats specified — AI will auto-assign with Image (4:5) and Video (9:16) defaults.</p>
+          )}
+        </div>
+      </Card>
+
+      {/* ─── Step 5: Content Engine ─── */}
+      <Card>
+        <div style={{ padding: 24 }} className="space-y-4">
+          <StepHeader number={5} title="Content Engine" subtitle="The Selling to Feeling framework drives content diversity." />
           <div>
             <Lbl>Content Track</Lbl>
             <div className="flex gap-1.5 flex-wrap">
@@ -292,73 +375,47 @@ export default function ContentEngineTab() {
               <Chip label="Mixed Batch" active={trackMode === "mixed"} onClick={() => setTrackMode("mixed")} />
             </div>
           </div>
-
-          {/* Program Context (Track A / Mixed only) */}
-          {trackMode !== "B" && (
-            <MotionDiv initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
-              <Lbl>Program Context</Lbl>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>School</div>
-                  <Sel value={school} onChange={schoolChange} options={SCHOOLS} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>Program</div>
-                  <Sel value={program} onChange={setProgram} options={SP[school] || []} />
-                </div>
-              </div>
-            </MotionDiv>
-          )}
-
-          {/* Bucket Quantities */}
           <div>
             <Lbl>Posts per Bucket</Lbl>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
               {activeBuckets.map((bucket) => (
-                <BucketRow key={bucket.letter} bucket={bucket} count={bucketCounts[bucket.letter] || 0} onChange={(n) => setBucketCount(bucket.letter, n)} />
+                <BucketRow key={bucket.letter} bucket={bucket} count={bucketCounts[bucket.letter] || 0} onChange={(n) => setBucketCounts((p) => ({ ...p, [bucket.letter]: n }))} />
               ))}
             </div>
-          </div>
-
-          {/* Generate Button */}
-          <div className="flex items-center gap-4">
-            <Btn onClick={generate} disabled={loading || totalCount() === 0}>
-              {loading ? <><Spinner /> Generating…</> : <>
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                Generate Content
-              </>}
-            </Btn>
-            <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
-              {totalCount()} post{totalCount() !== 1 ? "s" : ""} queued
-            </span>
           </div>
         </div>
       </Card>
 
-      {/* ─── Results ─── */}
-      <AnimatePresence>
-        {posts.length > 0 && (
-          <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <Card>
-              <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Generated Content</h3>
-                  <Badge color="orange">{posts.length} posts</Badge>
-                </div>
-                <div className="flex gap-2">
-                  <Btn2 onClick={() => downloadCSV(posts)} color="green">
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    Download CSV
-                  </Btn2>
-                </div>
+      {/* ─── Copy Prompt Button ─── */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <Btn onClick={copyPrompt} disabled={!canCopy}>
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+          {copied ? "Copied!" : "Copy Prompt for Claude"}
+        </Btn>
+        <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
+          {totalBucketCount()} post{totalBucketCount() !== 1 ? "s" : ""} queued
+          {!canCopy && <span style={{ color: "var(--red)", marginLeft: 8 }}>
+            {!hasBrief ? "— add a brief" : !hasDates ? "— add dates" : platforms.length === 0 ? "— select platforms" : totalBucketCount() === 0 ? "— set bucket quantities" : ""}
+          </span>}
+        </span>
+      </div>
+
+      {/* ─── Prompt preview ─── */}
+      {canCopy && (
+        <Card className="overflow-hidden">
+          <button onClick={() => setShowPreview(!showPreview)} className="cursor-pointer w-full flex items-center justify-between" style={{ padding: "10px 16px", background: "var(--accent-bg)", border: "none" }}>
+            <p style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>Paste into Claude.ai to generate {totalBucketCount()} post{totalBucketCount() !== 1 ? "s" : ""}</p>
+            <svg style={{ color: "var(--accent)", transform: showPreview ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          <AnimatePresence>{showPreview && (
+            <MotionDiv initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+              <div style={{ padding: 16, background: "var(--bg-inset)", maxHeight: 400, overflow: "auto" }}>
+                <pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{buildContentPrompt(promptParams())}</pre>
               </div>
-              <div style={{ padding: 16 }}>
-                <EditableTable posts={posts} onChange={setPosts} />
-              </div>
-            </Card>
-          </MotionDiv>
-        )}
-      </AnimatePresence>
+            </MotionDiv>
+          )}</AnimatePresence>
+        </Card>
+      )}
     </div>
   );
 }

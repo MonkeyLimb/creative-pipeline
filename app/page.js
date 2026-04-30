@@ -14,13 +14,11 @@ const SP = {
 };
 const SCHOOLS = Object.keys(SP);
 const PLATFORMS = ["Instagram", "Facebook", "TikTok"];
-const SIZES = ["4:5", "1:1", "9:16", "16:9"];
 const CT = ["Paid", "Organic"];
 const FORMATS = ["Single", "Carousel"];
 const ICPS = ["Working Adult", "Career Reset", "Ambition Blocker"];
 const TONES = ["Recognition", "Belief", "Awareness"];
 const HOOKS = ["Objection Flip", "Stat/Fact", "Day in the Life", "Pain Point", "Transformation", "Curiosity"];
-const PPD = [1, 2, 3, 4, 5];
 
 const AC = [1, 3, 5, 7, 10, 15];
 
@@ -54,75 +52,8 @@ function Lbl({ children }) { return <div style={{ fontSize: 11, fontWeight: 600,
 
 function Card({ children, className = "" }) { return <div className={className} style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 16, boxShadow: "var(--card-shadow)" }}>{children}</div>; }
 
-function Badge({ children, color = "default" }) {
-  const c = { default: { bg: "var(--bg-inset)", color: "var(--text-tertiary)", border: "var(--border)" }, orange: { bg: "var(--accent-bg)", color: "var(--accent)", border: "var(--accent-border)" }, green: { bg: "var(--green-bg)", color: "var(--green)", border: "var(--green-border)" }, violet: { bg: "var(--violet-bg)", color: "var(--violet)", border: "var(--violet-border)" } };
-  const s = c[color] || c.default;
-  return <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 6, background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>{children}</span>;
-}
-
-function Btn({ onClick, disabled, children }) {
-  return <button onClick={onClick} disabled={disabled} className="disabled:opacity-40 cursor-pointer flex items-center gap-2" style={{ background: "var(--accent)", color: "#fff", fontWeight: 700, padding: "11px 24px", borderRadius: 12, fontSize: 13, border: "none", boxShadow: "var(--accent-glow)", transition: "all 0.15s", letterSpacing: "0.01em" }}>{children}</button>;
-}
-
-function Btn2({ onClick, disabled, children, color = "green" }) {
-  const c = { green: { color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" }, violet: { color: "var(--violet)", bg: "var(--violet-bg)", border: "var(--violet-border)" } };
-  const s = c[color];
-  return <button onClick={onClick} disabled={disabled} className="disabled:opacity-40 cursor-pointer flex items-center gap-1.5" style={{ color: s.color, background: s.bg, border: `1px solid ${s.border}`, fontWeight: 600, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s" }}>{children}</button>;
-}
-
-function Spinner() { return <span className="spinner" />; }
-
 function Sel({ value, onChange, options }) {
   return <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
-}
-
-function DatePicker({ dates, onChange, mode, onModeChange, dateRange, onDateRangeChange }) {
-  const addDate = (e) => {
-    const v = e.target.value;
-    if (v && !dates.includes(v)) onChange([...dates, v].sort());
-    e.target.value = "";
-  };
-  const remove = (d) => onChange(dates.filter((x) => x !== d));
-  const fmt = (d) => { const dt = new Date(d + "T00:00:00"); return dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); };
-  const today = new Date().toISOString().split("T")[0];
-  const dateInputStyle = { width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" };
-  return (
-    <div>
-      <div className="flex gap-1.5 mb-2">
-        <Chip label="Pick Dates" active={mode === "dates"} onClick={() => onModeChange("dates")} />
-        <Chip label="Date Range" active={mode === "range"} onClick={() => onModeChange("range")} />
-      </div>
-      {mode === "range" ? (
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>Start</div>
-            <input type="date" min={today} value={dateRange.start || ""} onClick={(e) => e.target.showPicker?.()} onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })} style={dateInputStyle} />
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600 }}>End</div>
-            <input type="date" min={dateRange.start || today} value={dateRange.end || ""} onClick={(e) => e.target.showPicker?.()} onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })} style={dateInputStyle} />
-          </div>
-        </div>
-      ) : (
-        <>
-          <input type="date" min={today} onChange={addDate} onClick={(e) => e.target.showPicker?.()} style={dateInputStyle} />
-          {dates.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {dates.map((d) => (
-                <span key={d} className="flex items-center gap-1" style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 7, background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent-border)" }}>
-                  {fmt(d)}
-                  <button onClick={() => remove(d)} className="cursor-pointer" style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 13, lineHeight: 1, padding: 0 }}>&times;</button>
-                </span>
-              ))}
-              {dates.length > 1 && (
-                <button onClick={() => onChange([])} className="cursor-pointer" style={{ fontSize: 10, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: "3px 6px" }}>Clear all</button>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
 }
 
 function SPSelect({ school, program, onS, onP }) {
@@ -135,70 +66,11 @@ function SPSelect({ school, program, onS, onP }) {
   );
 }
 
-function DetailRow({ label, value }) {
-  if (!value) return null;
-  return <div style={{ padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}><div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div><div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65 }}>{value}</div></div>;
-}
-
-// ─── Cards ───
-function PostCard({ post, i }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04, duration: 0.3 }}>
-      <Card className="overflow-hidden">
-        <div onClick={() => setOpen(!open)} className="cursor-pointer" style={{ padding: "16px 20px", transition: "background 0.1s" }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1.5 flex-wrap"><span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-tertiary)", background: "var(--bg-inset)", padding: "1px 6px", borderRadius: 4 }}>{i + 1}</span><span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>{post.post_date}</span><Badge>{post.platform}</Badge><Badge>{post.size}</Badge></div>
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{post.brief}</p>
-            </div>
-            <svg className="shrink-0 mt-0.5" style={{ color: "var(--text-tertiary)", transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-          </div>
-        </div>
-        <AnimatePresence>{open && (
-          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-            <div style={{ padding: "0 20px 16px", borderTop: "1px solid var(--border-subtle)" }}>
-              <div style={{ paddingTop: 8 }}><DetailRow label="Required Elements" value={post.required_elements} /><DetailRow label="Hook Archetype" value={post.hook_archetype} /><DetailRow label="ICP" value={post.icp} /><DetailRow label="Tone" value={post.tone} /><DetailRow label="Notes" value={post.notes} /><DetailRow label="Caption" value={post.caption} /><DetailRow label="AI Visual Prompt" value={post.ai_visual_prompt} /><DetailRow label="Extra Notes" value={post.extra_notes} /></div>
-            </div>
-          </MotionDiv>
-        )}</AnimatePresence>
-      </Card>
-    </MotionDiv>
-  );
-}
-
-function AdCard({ ad, i }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04, duration: 0.3 }}>
-      <Card className="overflow-hidden">
-        <div onClick={() => setOpen(!open)} className="cursor-pointer" style={{ padding: "16px 20px", transition: "background 0.1s" }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1.5 flex-wrap"><span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-tertiary)", background: "var(--bg-inset)", padding: "1px 6px", borderRadius: 4 }}>{i + 1}</span><Badge color="orange">{ad.hook_format}</Badge><Badge color="violet">{ad.messaging_archetype}</Badge></div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>{ad.hook_text}</p>
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{ad.subtext}</p>
-            </div>
-            <svg className="shrink-0 mt-0.5" style={{ color: "var(--text-tertiary)", transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-          </div>
-        </div>
-        <AnimatePresence>{open && (
-          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-            <div style={{ padding: "0 20px 16px", borderTop: "1px solid var(--border-subtle)" }}>
-              <div style={{ paddingTop: 8 }}><DetailRow label="CTA" value={ad.cta} /><DetailRow label="Avatar Type" value={ad.avatar_type} /><DetailRow label="Offer Angle" value={ad.offer_angle} /><DetailRow label="AI Visual Prompt" value={ad.ai_visual_prompt} /><DetailRow label="Compliance" value={ad.compliance_notes} /></div>
-            </div>
-          </MotionDiv>
-        )}</AnimatePresence>
-      </Card>
-    </MotionDiv>
-  );
-}
-
 // ─── Guide Sidebar ───
 function GuideSidebar({ open, onClose }) {
   const data = [
-    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Select school and program", "Pick dates or a date range with posts-per-day cadence", "Tap platforms, sizes, ICPs, tones, hooks", "Generate — AI creates compliant briefs", "Expand posts to review all details", "Export CSV to Google Drive"] },
-    { t: "Paid Ads CSV", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", steps: ["Pick school, program, platform, type", "Select ICP targets, tones, archetypes", "Choose number of ads", "Generate compliant ad copy", "Copy for Canva — paste into Claude Chat", "Claude generates Canva designs automatically"] },
+    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Write a creative brief", "Pick dates, platforms, school + program", "Optionally set format mix (image/video/carousel)", "Set posts-per-bucket using the Selling to Feeling framework", "Click Copy Prompt — paste into Claude.ai", "Claude generates the full content calendar in chat"] },
+    { t: "Ad Creatives", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", steps: ["Pick school, program, platform, type, format", "Select ICPs, tones, hook archetypes, ad count", "Click Copy for Canva — paste into Claude.ai with Canva MCP", "Claude writes the ads and creates Canva designs in one pass", "Or use Pexels + Style for stock-photo designs instead"] },
   ];
   return (
     <AnimatePresence>
@@ -237,301 +109,7 @@ function GuideSidebar({ open, onClose }) {
   );
 }
 
-// ─── Visual Inspo Results ───
-function BriefField({ label, value }) {
-  if (!value) return null;
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div>
-      <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65 }}>{value}</p>
-    </div>
-  );
-}
-function PostBriefCard({ post, index, color = "orange" }) {
-  return (
-    <Card className="overflow-hidden">
-      <div style={{ padding: "16px 20px" }}>
-        <div className="flex items-center gap-2 mb-3"><Badge color={color}>Post {index + 1}</Badge>{post.size && <Badge color="green">{post.size}</Badge>}</div>
-        <div style={{ marginBottom: 8 }}><div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>Post Brief</div><p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", lineHeight: 1.5 }}>{post.post_brief}</p></div>
-        <BriefField label="Required to be in the Post" value={post.required_in_post} />
-        <BriefField label="Notes" value={post.notes} />
-        <BriefField label="Inspiration" value={post.inspiration} />
-        <BriefField label="Caption" value={post.caption} />
-        <BriefField label="Extra Notes" value={post.extra_notes} />
-      </div>
-    </Card>
-  );
-}
-
 // ─── Tabs ───
-function CalendarTab() {
-  const [school, setSchool] = useState("General");
-  const [program, setProgram] = useState(SP["General"][0]);
-  const [plat, setPlat] = useState(["Instagram"]);
-  const [ct, setCt] = useState("Organic");
-  const [sizes, setSizes] = useState(["4:5"]);
-  const [icps, setIcps] = useState(["Working Adult"]);
-  const [tones, setTones] = useState(["Belief"]);
-  const [hooks, setHooks] = useState(["Transformation"]);
-  const [ppd, setPpd] = useState(2);
-  const [dateMode, setDateMode] = useState("dates");
-  const [dates, setDates] = useState([]);
-  const [dr, setDr] = useState({ start: "", end: "" });
-  const [fmt, setFmt] = useState("Single");
-  const [ctx, setCtx] = useState("");
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [showMore, setShowMore] = useState(false);
-  // Visual Inspo Engine state
-  const [inspoImages, setInspoImages] = useState([]);
-  const [inspoResult, setInspoResult] = useState(null);
-  const [inspoLoading, setInspoLoading] = useState(false);
-  const [inspoCopied, setInspoCopied] = useState(false);
-  const [sheetsUploading, setSheetsUploading] = useState(false);
-  const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
-  const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
-
-  // ─── Image Upload Helpers ───
-  const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-  const handleImageFiles = (files) => {
-    const valid = Array.from(files).filter((f) => ACCEPTED_TYPES.includes(f.type));
-    if (!valid.length) { toast.error("Only JPEG, PNG, and WebP images are accepted"); return; }
-    const remaining = 3 - inspoImages.length;
-    if (remaining <= 0) { toast.error("Maximum 3 images"); return; }
-    const toAdd = valid.slice(0, remaining);
-    toAdd.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setInspoImages((prev) => {
-          if (prev.length >= 3) return prev;
-          return [...prev, { file, preview: ev.target.result, mediaType: file.type }];
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-  const removeImage = (idx) => setInspoImages((prev) => prev.filter((_, i) => i !== idx));
-  const handleDrop = (e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; handleImageFiles(e.dataTransfer.files); };
-  const handleDragOver = (e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--accent)"; };
-  const handleDragLeave = (e) => { e.currentTarget.style.borderColor = "var(--border)"; };
-
-  // ─── Visual Inspo Generate ───
-  const genInspo = async () => {
-    if (!inspoImages.length) { toast.error("Upload at least one inspiration image"); return; }
-    setInspoLoading(true); setInspoResult(null);
-    try {
-      const images = await Promise.all(inspoImages.map(async (img) => {
-        const dataUrl = img.preview;
-        const base64 = dataUrl.split(",")[1];
-        return { data: base64, mediaType: img.mediaType };
-      }));
-      const r = await fetch("/api/visual-inspo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ images, school, program, platforms: plat, posts_per_day: ppd, dates, date_mode: dateMode, date_range: dr, icps, tones, hooks, extra_context: ctx }) });
-      const d = await r.json();
-      if (d.error) throw new Error(d.error);
-      setInspoResult(d.result);
-      toast.success("Visual analysis complete");
-    } catch (e) { toast.error(e.message); } finally { setInspoLoading(false); }
-  };
-
-  // ─── Inspo CSV helpers ───
-  const inspoToCsv = () => {
-    if (!inspoResult || !inspoResult.posts) return "";
-    const esc = (v) => `"${(v || "").replace(/"/g, '""')}"`;
-    const platformStr = plat.join(", ");
-    const posts = inspoResult.posts;
-
-    // Build CSV in the organic brief spreadsheet format
-    let csvRows = [];
-    posts.forEach((post, i) => {
-      csvRows.push(`Post ${i + 1},,,,Links to final output`);
-      csvRows.push(`,Post Brief (Description),${esc(post.post_brief)},,`);
-      csvRows.push(`,Required to be in the Post,${esc(post.required_in_post)},,`);
-      csvRows.push(`,Size,${esc(post.size)},,`);
-      csvRows.push(`,Notes,${esc(post.notes)},,`);
-      csvRows.push(`,Inspiration,${esc(post.inspiration)},,`);
-      csvRows.push(`,Versions,,,`);
-      csvRows.push(`,Caption (Fill out if empty),${esc(post.caption)},,`);
-      csvRows.push(`,Extra notes,${esc(post.extra_notes)},,`);
-      if (i < posts.length - 1) { csvRows.push(`,,,,`); csvRows.push(`,,,,`); csvRows.push(`,,,,`); }
-    });
-    const csvData = csvRows.join("\n");
-
-    const instructions = `# Dreambound Organic Creative Brief
-## Context
-- School: ${school}
-- Program/Focus: ${program}
-- Platforms: ${platformStr}
-- Content Type: Organic
-
-## Instructions
-Below is a creative brief with ${posts.length} post briefs for organic content.
-Each post has production direction for the creative team.
-
-1. Dreambound is the ONLY brand name. Never use school names in copy or designs.
-2. No employment guarantees, outcome promises, or "guarantee", "free", "dream career", "Fast Track".
-${school !== "General" && ["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `3. Degree program: use "study" and "education" only. Never "train"/"training".\n` : ""}${school !== "General" && !["UMA", "SNHU", "AIU", "CTU", "FSU"].includes(school) ? `3. Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}\n` : ""}
-## Brief Data
-${csvData}`;
-    return instructions;
-  };
-  const inspoToCsvOnly = () => {
-    if (!inspoResult || !inspoResult.posts) return "";
-    const esc = (v) => `"${(v || "").replace(/"/g, '""')}"`;
-    const posts = inspoResult.posts;
-    let csvRows = [];
-    posts.forEach((post, i) => {
-      csvRows.push(`Post ${i + 1},,,,Links to final output`);
-      csvRows.push(`,Post Brief (Description),${esc(post.post_brief)},,`);
-      csvRows.push(`,Required to be in the Post,${esc(post.required_in_post)},,`);
-      csvRows.push(`,Size,${esc(post.size)},,`);
-      csvRows.push(`,Notes,${esc(post.notes)},,`);
-      csvRows.push(`,Inspiration,${esc(post.inspiration)},,`);
-      csvRows.push(`,Versions,,,`);
-      csvRows.push(`,Caption (Fill out if empty),${esc(post.caption)},,`);
-      csvRows.push(`,Extra notes,${esc(post.extra_notes)},,`);
-      if (i < posts.length - 1) { csvRows.push(`,,,,`); csvRows.push(`,,,,`); csvRows.push(`,,,,`); }
-    });
-    return csvRows.join("\n");
-  };
-  const dlInspoCsv = () => { const b = new Blob([inspoToCsvOnly()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_organic_brief.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
-  const copyInspoCsv = () => { navigator.clipboard.writeText(inspoToCsv()); setInspoCopied(true); toast.success("Copied with instructions — paste into Claude Chat"); setTimeout(() => setInspoCopied(false), 2500); };
-  const uploadToSheets = async () => {
-    if (!inspoResult || !inspoResult.posts) return;
-    setSheetsUploading(true);
-    try {
-      const csvData = inspoToCsvOnly();
-      const fileName = `${school} - ${program} - Organic Brief`;
-      const r = await fetch("/api/upload-to-sheets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csvData, fileName }) });
-      const d = await r.json();
-      if (d.error) throw new Error(d.error);
-      window.open(d.url, "_blank");
-      toast.success("Uploaded to Google Drive");
-    } catch (e) { toast.error(e.message); } finally { setSheetsUploading(false); }
-  };
-
-  const isInspoMode = ct === "Organic" && inspoImages.length > 0;
-
-  const gen = async () => {
-    if (isInspoMode) { genInspo(); return; }
-    setLoading(true); setPosts([]);
-    try {
-      const r = await fetch("/api/generate-calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platforms: plat, creative_type: ct, format: fmt, sizes, icps, tones, hooks, posts_per_day: ppd, date_mode: dateMode, dates, date_range: dr, extra_context: ctx }) });
-      const d = await r.json(); if (d.error) throw new Error(d.error);
-      setPosts(d.posts); toast.success(`Generated ${d.posts.length} posts`);
-    } catch (e) { toast.error(e.message); } finally { setLoading(false); }
-  };
-  const exp = async () => {
-    setExporting(true);
-    try {
-      const r = await fetch("/api/export-csv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ posts, school, program }) });
-      const b = await r.blob(); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${program.replace(/\s+/g, "_")}_calendar.csv`; a.click(); URL.revokeObjectURL(u);
-      toast.success("CSV downloaded");
-    } catch (e) { toast.error(e.message); } finally { setExporting(false); }
-  };
-  return (
-    <div className="space-y-6">
-      <Card className="p-5 sm:p-7 space-y-5">
-        <SPSelect school={school} program={program} onS={sc} onP={setProgram} />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div><Lbl>Type</Lbl><div className="flex gap-1.5 flex-wrap">{CT.map((t) => <Chip key={t} label={t} active={ct === t} onClick={() => setCt(t)} />)}</div></div>
-          <div><Lbl>Format</Lbl><div className="flex gap-1.5 flex-wrap">{FORMATS.map((f) => <Chip key={f} label={f} active={fmt === f} onClick={() => setFmt(f)} />)}</div></div>
-          <div><Lbl>Platforms</Lbl><div className="flex gap-1.5 flex-wrap">{PLATFORMS.map((p) => <MChip key={p} label={p} active={plat.includes(p)} onClick={() => tog(plat, setPlat, p)} />)}</div></div>
-          <div><Lbl>Sizes</Lbl><div className="flex gap-1.5 flex-wrap">{SIZES.map((s) => <MChip key={s} label={s} active={sizes.includes(s)} onClick={() => tog(sizes, setSizes, s)} />)}</div></div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
-          <div><Lbl>Posts per Day</Lbl><Sel value={ppd} onChange={(v) => setPpd(Number(v))} options={PPD} /></div>
-          <div className="sm:col-span-2"><Lbl>Dates</Lbl><DatePicker dates={dates} onChange={setDates} mode={dateMode} onModeChange={setDateMode} dateRange={dr} onDateRangeChange={setDr} /></div>
-          <div className="flex items-end"><Btn onClick={gen} disabled={(isInspoMode ? inspoLoading : loading) || !plat.length || (!isInspoMode && dateMode === "dates" && !dates.length) || (!isInspoMode && dateMode === "range" && (!dr.start || !dr.end))}>{(isInspoMode ? inspoLoading : loading) && <Spinner />}{isInspoMode ? (inspoLoading ? "Analyzing Images..." : "Analyze Inspo") : loading ? "Generating..." : dateMode === "dates" ? `Generate ${ppd * dates.length} Posts` : `Generate Posts`}</Btn></div>
-        </div>
-        {/* Collapsible targeting options */}
-        <button onClick={() => setShowMore(!showMore)} className="cursor-pointer flex items-center gap-1.5" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>
-          <svg style={{ transform: showMore ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-          Targeting & Context
-        </button>
-        <AnimatePresence>{showMore && (
-          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div><Lbl>ICPs</Lbl><div className="flex gap-1.5 flex-wrap">{ICPS.map((i) => <MChip key={i} label={i} active={icps.includes(i)} onClick={() => tog(icps, setIcps, i)} />)}</div></div>
-              <div><Lbl>Tones</Lbl><div className="flex gap-1.5 flex-wrap">{TONES.map((t) => <MChip key={t} label={t} active={tones.includes(t)} onClick={() => tog(tones, setTones, t)} />)}</div></div>
-              <div><Lbl>Hooks</Lbl><div className="flex gap-1.5 flex-wrap">{HOOKS.map((h) => <MChip key={h} label={h} active={hooks.includes(h)} onClick={() => tog(hooks, setHooks, h)} />)}</div></div>
-            </div>
-            <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign theme, direction..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
-          </MotionDiv>
-        )}</AnimatePresence>
-        {/* Visual Inspo Image Upload — Organic only */}
-        <AnimatePresence>{ct === "Organic" && (
-          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
-            <div style={{ marginBottom: 4 }}>
-              <Lbl>Inspiration Images (Max 3)</Lbl>
-              <div
-                onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
-                onClick={() => { if (inspoImages.length < 3) document.getElementById("inspo-upload").click(); }}
-                className="cursor-pointer"
-                style={{ border: "2px dashed var(--border)", borderRadius: 12, padding: inspoImages.length ? "16px" : "28px 16px", textAlign: "center", transition: "border-color 0.2s, background 0.2s", background: "var(--bg-inset)" }}
-              >
-                {inspoImages.length === 0 && (
-                  <div>
-                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="var(--text-tertiary)" strokeWidth={1.5} style={{ margin: "0 auto 8px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    <p style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 500 }}>Drop images here or click to upload</p>
-                    <p style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4, opacity: 0.7 }}>JPEG, PNG, WebP</p>
-                  </div>
-                )}
-                {inspoImages.length > 0 && (
-                  <div className="flex gap-3 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
-                    {inspoImages.map((img, i) => (
-                      <div key={i} style={{ position: "relative", width: 72, height: 72, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
-                        <img src={img.preview} alt={`Inspo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        <button onClick={(e) => { e.stopPropagation(); removeImage(i); }} className="cursor-pointer" style={{ position: "absolute", top: 2, right: 2, width: 18, height: 18, borderRadius: 99, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", fontSize: 11, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>&times;</button>
-                      </div>
-                    ))}
-                    {inspoImages.length < 3 && (
-                      <button onClick={() => document.getElementById("inspo-upload").click()} className="cursor-pointer" style={{ width: 72, height: 72, borderRadius: 8, border: "2px dashed var(--border)", background: "transparent", color: "var(--text-tertiary)", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-                    )}
-                  </div>
-                )}
-                <input id="inspo-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display: "none" }} onChange={(e) => { handleImageFiles(e.target.files); e.target.value = ""; }} />
-              </div>
-            </div>
-          </MotionDiv>
-        )}</AnimatePresence>
-      </Card>
-      {posts.length > 0 && (
-        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-          <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Calendar</span><Badge color="green">{posts.length}</Badge></div>
-            <Btn2 onClick={exp} disabled={exporting}>{exporting ? <Spinner /> : <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>}{exporting ? "..." : "Export CSV"}</Btn2></div>
-          <div className="space-y-2.5">{posts.map((p, i) => <PostCard key={i} post={p} i={i} />)}</div>
-        </MotionDiv>
-      )}
-      {/* Visual Inspo Results */}
-      {inspoResult && inspoResult.posts && (
-        <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Organic Creative Brief</span>
-              <Badge color="orange">{inspoResult.posts.length} Posts</Badge>
-            </div>
-            <div className="flex gap-2">
-              <Btn2 onClick={uploadToSheets} disabled={sheetsUploading} color="green">{sheetsUploading ? <><Spinner />{"Uploading..."}</> : <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>{"CSV to GDrive"}</>}</Btn2>
-              <Btn2 onClick={dlInspoCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
-              <Btn2 onClick={copyInspoCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>{inspoCopied ? "Copied!" : "Copy as CSV"}</Btn2>
-            </div>
-          </div>
-          <div className="space-y-2.5">
-            {inspoResult.posts.map((post, i) => {
-              const colors = ["orange", "green", "violet"];
-              return (
-                <MotionDiv key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * (i + 1) }}>
-                  <PostBriefCard post={post} index={i} color={colors[i % colors.length]} />
-                </MotionDiv>
-              );
-            })}
-          </div>
-        </MotionDiv>
-      )}
-    </div>
-  );
-}
 
 function PaidAdsTab() {
   const [school, setSchool] = useState("General");
@@ -544,34 +122,74 @@ function PaidAdsTab() {
   const [hooks, setHooks] = useState(["Objection Flip", "Transformation"]);
   const [ac, setAc] = useState(5);
   const [ctx, setCtx] = useState("");
-  const [ads, setAds] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
   const [showMore, setShowMore] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(null);
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
   const isGeneral = school === "General";
-  const gen = async () => {
-    setLoading(true); setAds([]);
-    try {
-      const r = await fetch("/api/generate-ads-csv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platform: plat, creative_type: ct, format: fmt, icps, tones, hooks, ad_count: ac, extra_context: ctx }) });
-      const d = await r.json(); if (d.error) throw new Error(d.error);
-      setAds(d.ads); toast.success(`Generated ${d.ads.length} ads`);
-    } catch (e) { toast.error(e.message); } finally { setLoading(false); }
+
+  // ─── Build the smart prompt file for Claude.ai + Canva MCP ───
+  const DEGREE_SCHOOLS = ["UMA", "SNHU", "AIU", "CTU", "FSU"];
+
+  const complianceLines = () => {
+    const isDegree = DEGREE_SCHOOLS.includes(school);
+    const lines = [
+      `- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}`,
+      `- No employment guarantees, outcome promises, or job placement language.`,
+      `- No "guarantee", "free", "dream career", "Fast Track".`,
+    ];
+    if (!isGeneral && isDegree) lines.push(`- This is a DEGREE program: use "study" and "education" only. Never "train"/"training". "Career" must pair with "path" or "journey".`);
+    if (!isGeneral && !isDegree) lines.push(`- This is a CERTIFICATE program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}`);
+    if (isGeneral) lines.push(`- General Dreambound content: focus on brand values, education marketplace positioning, and aspirational messaging.`);
+    if (school === "FSU") lines.push(`- FSU financial aid line: "Financial Aid is available for those who qualify." (exact wording)`);
+    else if (!isGeneral && ct === "Paid") lines.push(`- Financial aid line: "Financial aid may be available for those who qualify."`);
+    if (school === "AIU" || school === "CTU") lines.push(`- ${school}: No urgency language. Always include "Completion times vary according to the individual student."`);
+    return lines.join("\n");
   };
 
-  // ─── Build the smart prompt file for Claude Chat + Canva MCP ───
-  const DEGREE_SCHOOLS = ["UMA", "SNHU", "AIU", "CTU", "FSU"];
+  const adGenSection = () => `## STEP A: Write the ${ac} Ads
+You are a compliant paid ad copywriter for Dreambound.
+School: ${school} | Program: ${program} | Platform: ${plat} | Creative type: ${ct} | Format: ${fmt}
+
+Generate exactly ${ac} unique paid ad creatives. Distribute across these combinations (vary as much as possible — different ICP + tone + hook per ad):
+- ICP targets: ${icps.join(", ")}
+- Tones: ${tones.join(", ")}
+- Hook archetypes: ${hooks.join(", ")}
+
+Each ad must:
+- Use a different ICP + tone + hook combination
+- Have a compelling, scroll-stopping hook
+- Use B-roll + text overlay style for any visual direction (NO talking-head or selfie videos — we use thematic B-roll footage with bold on-screen text)
+- Be fully compliant with the rules below
+
+${ctx ? `Additional context:\n${ctx}\n` : ""}
+For each ad, produce these fields:
+- Hook Format: the hook archetype used
+- Messaging Archetype: the messaging archetype/tone
+- Hook Text: the headline (large, bold, scroll-stopping)
+- Subtext: supporting body copy
+- CTA: call to action text
+- AI Visual Prompt: detailed B-roll + text overlay description (setting, movement, mood, color grade, lighting, exact on-screen text, font style, placement)
+- Pexels Query: 2-5 word search query for Pexels stock photo (literal scene, e.g. "clean clinic room" not "healthcare"; no brand names, no faces, no overlays)
+- Font Color: hex color for headline text, picked for contrast against the likely Pexels image
+- Font Weight: bold or normal
+- Font Size: integer px (larger for short hooks)
+- Font Style: normal or italic
+
+COMPLIANCE RULES (CRITICAL):
+${complianceLines()}
+
+---
+
+`;
   const buildPrompt = () => {
-    if (!ads.length) return "";
-    const isDegree = DEGREE_SCHOOLS.includes(school);
     const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
     const dim = dims[plat] || "1080x1350";
     const isCarousel = fmt === "Carousel";
     const folderName = isGeneral ? `Dreambound - ${program} - ${plat} ${ct}` : `${school} - ${program} - ${plat} ${ct}`;
 
-    let prompt = `# Dreambound Canva Design Job
+    return `# Dreambound Canva Design Job
 ## STEP 0: Verify Canva MCP Connection
 Before doing anything else, confirm you have access to Canva MCP tools. Try listing your available tools and verify you can see: generate_design, perform_editing_operations, create_folder, move_item_to_folder, and get_design.
 
@@ -579,19 +197,19 @@ If you do NOT have Canva connected:
 - Tell me "Canva MCP is not connected. Please enable it in your MCP settings first."
 - Stop here. Do not proceed.
 
-If you DO have Canva connected, say "Canva MCP verified." and proceed to Step 1.
+If you DO have Canva connected, say "Canva MCP verified." and proceed to Step A.
 
 ---
 
-## STEP 1: Create Folder
+${adGenSection()}## STEP B: Create Folder
 Create a Canva folder named: "${folderName}"
 Save the folder ID for organizing designs later.
 
 ---
 
-## STEP 2: Generate Designs
-Process each ad below ONE AT A TIME. For each ad:
-1. Use generate_design with the AI Visual Prompt below. Target size: ${dim}. Make it a ${plat} ${ct.toLowerCase()} ad.${isCarousel ? `
+## STEP C: Generate Designs (${ac} total${isCarousel ? " — CAROUSEL format" : ""})
+For each ad you wrote in Step A, ONE AT A TIME:
+1. Use generate_design with the AI Visual Prompt for that ad. Target size: ${dim}. Make it a ${plat} ${ct.toLowerCase()} ad.${isCarousel ? `
    - This is a CAROUSEL. Generate a multi-page design (3-5 slides per ad).
    - Slide 1: Hook Text as bold headline with striking visual.
    - Slides 2-3: Subtext broken across slides with supporting visuals.
@@ -602,98 +220,95 @@ Process each ad below ONE AT A TIME. For each ad:
    - Hook Text as the primary headline (large, bold, high contrast)
    - Subtext as supporting body copy (smaller, below headline)
    - CTA as button or bottom banner text (clear, actionable)`}
-3. Use move_item_to_folder to put the design in the folder from Step 1.
+3. Use move_item_to_folder to put the design in the folder from Step B.
 4. Report the design URL before moving to the next ad.
 
-COMPLIANCE RULES (CRITICAL):
-- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}
-- No employment guarantees, outcome promises, or job placement language.
-- No "guarantee", "free", "dream career", "Fast Track".
-${!isGeneral && isDegree ? `- This is a DEGREE program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- This is a CERTIFICATE program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values, education marketplace positioning, and aspirational messaging.` : ""}
-${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for those who qualify." (exact wording)\n' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency language. Include "Completion times vary according to the individual student."\n` : ""}
 ---
 
-## ADS TO GENERATE (${ads.length} total${isCarousel ? " — CAROUSEL format" : ""})
-`;
-
-    ads.forEach((ad, i) => {
-      prompt += `
-### Ad ${i + 1} of ${ads.length}
-- **Hook Format:** ${ad.hook_format}
-- **Messaging Archetype:** ${ad.messaging_archetype}
-- **Hook Text:** ${ad.hook_text}
-- **Subtext:** ${ad.subtext}
-- **CTA:** ${ad.cta}
-- **AI Visual Prompt:** ${ad.ai_visual_prompt}
-`;
-    });
-
-    prompt += `
----
-
-## STEP 3: Summary
-After all ${ads.length} designs are generated, provide a summary table:
+## STEP D: Summary
+After all ${ac} designs are generated, provide a summary table:
 | Ad # | Hook Text (first 30 chars) | Design URL | Status |
 |------|---------------------------|------------|--------|
 
-Then confirm: "All ${ads.length} designs generated and organized in the '${folderName}' folder."
+Then confirm: "All ${ac} designs generated and organized in the '${folderName}' folder."
 `;
-
-    return prompt;
   };
 
-  const csvRaw = () => {
-    if (!ads.length) return "";
-    const h = "Program,Hook Format,Messaging Archetype,Avatar Type,Offer Angle,Hook Text,Subtext,CTA,AI Visual Prompt";
-    const rows = ads.map((a) => [program, a.hook_format, a.messaging_archetype, a.avatar_type, a.offer_angle, a.hook_text, a.subtext, a.cta, a.ai_visual_prompt].map((v) => `"${(v || "").replace(/"/g, '""')}"`).join(","));
-    return [h, ...rows].join("\n");
-  };
-  const csvWithInstructions = () => {
-    if (!ads.length) return "";
-    const csvData = csvRaw();
-    const isDegree = DEGREE_SCHOOLS.includes(school);
-    const isGeneral = school === "General";
+  const buildPexelsPrompt = () => {
     const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
     const dim = dims[plat] || "1080x1350";
     const isCarousel = fmt === "Carousel";
+    const folderName = isGeneral ? `Dreambound - ${program} - ${plat} ${ct} (Pexels)` : `${school} - ${program} - ${plat} ${ct} (Pexels)`;
 
-    return `# Dreambound ${ct} Ad Creatives — Design in Canva
-## Context
-- School: ${school}
-- Program: ${program}
-- Platform: ${plat}
-- Type: ${ct}
-- Format: ${fmt}${isCarousel ? " (Carousel)" : ""}
-- Target Size: ${dim}
+    return `# Dreambound Canva Design Job — Pexels Stock Photo
+## STEP 0: Verify Canva MCP Connection
+Before doing anything else, confirm you have access to Canva MCP tools. Try listing your available tools and verify you can see: generate_design, perform_editing_operations, create_folder, move_item_to_folder, upload_asset_from_url, start_editing_transaction, commit_editing_transaction, and get_design.
 
-## Instructions
-Below is a CSV of ${ads.length} ad creatives. For each row, design a ${plat} ${ct.toLowerCase()} ad in Canva:
+If you do NOT have Canva connected:
+- Tell me "Canva MCP is not connected. Please enable it in your MCP settings first."
+- Stop here. Do not proceed.
 
-1. Use "Hook Text" as the primary headline (large, bold, high contrast).
-2. Use "Subtext" as supporting body copy (smaller, below headline).
-3. Use "CTA" as a button or bottom banner text.
-4. Use "AI Visual Prompt" as the visual direction for the Canva design background/scene.
-5. Create each ad as a separate Canva design at ${dim}.${isCarousel ? `
-6. CAROUSEL format: Generate multi-page Canva designs (3-5 slides per ad).
-   - Slide 1: Hook Text as bold headline with striking visual.
-   - Slides 2-3: Subtext broken across slides with supporting visuals.
-   - Final slide: CTA with clear action button.` : ""}
+If you DO have Canva connected, say "Canva MCP verified." and proceed to Step A.
 
-## Compliance Rules (CRITICAL — Claude MUST adhere to all compliance rules below)
-- You MUST strictly follow every compliance rule listed here. Do NOT deviate from or relax any rule, even if the ad copy in the CSV appears to do so.
-- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER use "${school}" or any school name in designs.` : ""}
-- No employment guarantees, outcome promises, or job placement language.
-- No "guarantee", "free", "dream career", "Fast Track".
-${!isGeneral && isDegree ? `- Degree program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values and education marketplace positioning.` : ""}
-${school === "FSU" ? '- FSU: "Financial Aid is available for those who qualify." (exact wording)' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency. Include "Completion times vary according to the individual student."` : ""}
-- If any text in the CSV conflicts with these compliance rules, the compliance rules take priority. Flag and correct any non-compliant language.
+---
 
-## CSV Data
-${csvData}`;
+${adGenSection()}## STEP B: Create Folder
+Create a Canva folder named: "${folderName}"
+Save the folder ID for organizing designs later.
+
+---
+
+## STEP C: Build Designs from Pexels Stock Photos (${ac} total${isCarousel ? " — CAROUSEL format" : ""})
+For each ad you wrote in Step A, ONE AT A TIME:
+
+1. **Search Pexels:** Go to pexels.com and search for that ad's Pexels Query. Pick the top result. Copy its direct image URL.
+
+2. **Upload to Canva:** Use upload-asset-from-url with the Pexels image URL. Name it after the ad (e.g. "Ad 1 - {first few words of hook}").
+
+3. **Create a design:** Use generate_design. Target size: ${dim}. Make it a ${plat} ${ct.toLowerCase()} ad. Use the Pexels image as the primary background/visual.${isCarousel ? `
+   - This is a CAROUSEL. Generate a multi-page design (3-5 slides per ad).
+   - Slide 1: Hook Text as bold headline over the Pexels image.
+   - Slides 2-3: Subtext broken across slides with the stock photo as background.
+   - Final slide: CTA with clear action button/text.
+   - Keep visual theme consistent across all slides.` : ""}
+
+4. **Open design for editing:** Use start-editing-transaction with the design_id.
+
+5. **Set the Pexels image as background fill:** Use perform-editing-operations → update_fill with the uploaded asset_id. Apply to all image fills where editable is true.
+
+6. **Add and style the text elements:**${isCarousel ? `
+   - Distribute text across slides as described above.` : `
+   - Hook Text as the primary headline (large, bold, high contrast)
+   - Subtext as supporting body copy (smaller, below headline)
+   - CTA as button or bottom banner text (clear, actionable)`}
+   Then use perform-editing-operations → format_text to apply the font styling from the ad spec (Font Color, Font Weight, Font Size, Font Style). Apply to ALL richtext element_ids in the design.
+
+7. **Commit:** Use commit-editing-transaction.
+
+8. Use move_item_to_folder to put the design in the folder from Step B.
+
+9. Report the design URL before moving to the next ad.
+
+---
+
+## STEP D: Summary
+After all ${ac} designs are created, provide a summary table:
+| Ad # | Hook Text (first 30 chars) | Pexels Query | Design URL | Status |
+|------|---------------------------|--------------|------------|--------|
+
+Then confirm: "All ${ac} designs created with Pexels stock photos and organized in the '${folderName}' folder."
+`;
   };
-  const copyPrompt = () => { navigator.clipboard.writeText(buildPrompt()); setCopied(true); toast.success("Canva prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
-  const copyCsv = () => { navigator.clipboard.writeText(csvWithInstructions()); setCopied(true); toast.success("CSV + instructions copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
-  const dlCsv = () => { const b = new Blob([csvRaw()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+
+  const copyTo = (text, key, label) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast.success(`${label} — paste into Claude.ai`);
+    setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 2500);
+  };
+  const copyPrompt = () => copyTo(buildPrompt(), "canva", "Canva prompt copied");
+  const copyPexelsPrompt = () => copyTo(buildPexelsPrompt(), "pexels", "Pexels + Style prompt copied");
+  const previewText = showPreview === "canva" ? buildPrompt() : showPreview === "pexels" ? buildPexelsPrompt() : "";
   return (
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
@@ -719,37 +334,31 @@ ${csvData}`;
             <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign angle, offers..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
           </MotionDiv>
         )}</AnimatePresence>
-        <div className="flex justify-end"><Btn onClick={gen} disabled={loading}>{loading && <Spinner />}{loading ? "Generating..." : `Generate ${ac} Ads`}</Btn></div>
+        <div className="flex flex-wrap gap-2 justify-end">
+          <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "9px 16px", borderRadius: 10, fontSize: 13, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}>
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+            {copiedKey === "canva" ? "Copied!" : `Copy for Canva (${ac} ads)`}
+          </button>
+          <button onClick={copyPexelsPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "var(--violet)", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", fontWeight: 700, padding: "9px 16px", borderRadius: 10, fontSize: 13, transition: "all 0.15s" }}>
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            {copiedKey === "pexels" ? "Copied!" : "Pexels + Style"}
+          </button>
+        </div>
       </Card>
-      {ads.length > 0 && (
-        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Ad Creatives</span>
-              <Badge color="orange">{ads.length}</Badge>
-              {fmt === "Carousel" && <Badge color="violet">Carousel</Badge>}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Canva"}</button>
-              <Btn2 onClick={copyCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy CSV</Btn2>
-              <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
-            </div>
-          </div>
-          {/* Collapsible prompt preview */}
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={() => setShowPreview(showPreview === "canva" ? null : "canva")} className="cursor-pointer" style={{ fontSize: 11, fontWeight: 600, color: showPreview === "canva" ? "var(--accent)" : "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>{showPreview === "canva" ? "Hide" : "Preview"} Canva prompt</button>
+        <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>·</span>
+        <button onClick={() => setShowPreview(showPreview === "pexels" ? null : "pexels")} className="cursor-pointer" style={{ fontSize: 11, fontWeight: 600, color: showPreview === "pexels" ? "var(--violet)" : "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>{showPreview === "pexels" ? "Hide" : "Preview"} Pexels prompt</button>
+      </div>
+      <AnimatePresence>{showPreview && (
+        <MotionDiv initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
           <Card className="overflow-hidden">
-            <button onClick={() => setShowPreview(!showPreview)} className="cursor-pointer w-full flex items-center justify-between" style={{ padding: "10px 16px", background: "var(--accent-bg)", border: "none" }}>
-              <p style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>Paste into Claude Chat with Canva MCP to generate {ads.length} designs{fmt === "Carousel" ? " (carousel)" : ""}</p>
-              <svg style={{ color: "var(--accent)", transform: showPreview ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-            </button>
-            <AnimatePresence>{showPreview && (
-              <MotionDiv initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-                <div style={{ padding: 16, background: "var(--bg-inset)", maxHeight: 300, overflow: "auto" }}><pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{buildPrompt()}</pre></div>
-              </MotionDiv>
-            )}</AnimatePresence>
+            <div style={{ padding: 16, background: "var(--bg-inset)", maxHeight: 480, overflow: "auto" }}>
+              <pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{previewText}</pre>
+            </div>
           </Card>
-          <div className="space-y-2.5">{ads.map((ad, i) => <AdCard key={i} ad={ad} i={i} />)}</div>
         </MotionDiv>
-      )}
+      )}</AnimatePresence>
     </div>
   );
 }
@@ -782,14 +391,14 @@ export default function Home() {
       </header>
 
       <nav className="flex gap-0.5 mb-7 p-1" style={{ background: "var(--bg-raised)", borderRadius: 12, border: "1px solid var(--border)", width: "fit-content", boxShadow: "var(--card-shadow)" }}>
-        {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Ad Creatives" }, { id: "content-engine", label: "Content Engine" }].map((t) => (
+        {[{ id: "calendar", label: "Content Calendar" }, { id: "ads", label: "Ad Creatives" }].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className="cursor-pointer" style={{ padding: "8px 18px", borderRadius: 9, fontSize: 13, fontWeight: 600, border: "none", transition: "all 0.15s", ...(tab === t.id ? { background: "var(--bg-inset)", color: "var(--text)", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" } : { background: "transparent", color: "var(--text-tertiary)" }) }}>{t.label}</button>
         ))}
       </nav>
 
       <AnimatePresence mode="wait">
         <MotionDiv key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
-          {tab === "calendar" ? <CalendarTab /> : tab === "ads" ? <PaidAdsTab /> : <ContentEngineTab />}
+          {tab === "calendar" ? <ContentEngineTab /> : <PaidAdsTab />}
         </MotionDiv>
       </AnimatePresence>
     </div>
