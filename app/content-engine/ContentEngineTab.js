@@ -39,10 +39,7 @@ function Lbl({ children }) { return <div style={{ fontSize: 11, fontWeight: 600,
 function Chip({ label, active, onClick }) { return <button onClick={onClick} className="relative cursor-pointer" style={{ padding: "6px 14px", borderRadius: 99, fontSize: 12, fontWeight: 600, border: "1px solid transparent", transition: "all 0.2s", ...(active ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)", boxShadow: "var(--accent-glow)" } : { background: "var(--bg-inset)", color: "var(--text-secondary)", borderColor: "var(--border)" }) }}>{label}</button>; }
 function MChip({ label, active, onClick }) { return <button onClick={onClick} className="cursor-pointer flex items-center gap-1.5" style={{ padding: "6px 14px", borderRadius: 99, fontSize: 12, fontWeight: 500, transition: "all 0.2s", ...(active ? { background: "var(--accent-bg)", color: "var(--accent)", border: "1px solid var(--accent-border)" } : { background: "var(--bg-inset)", color: "var(--text-tertiary)", border: "1px solid var(--border)" }) }}>{active && <span style={{ width: 5, height: 5, borderRadius: 99, background: "var(--accent)" }} />}{label}</button>; }
 function Btn({ onClick, disabled, children }) { return <button onClick={onClick} disabled={disabled} className="disabled:opacity-40 cursor-pointer flex items-center gap-2" style={{ background: "var(--accent)", color: "#fff", fontWeight: 700, padding: "11px 24px", borderRadius: 12, fontSize: 13, border: "none", boxShadow: "var(--accent-glow)", transition: "all 0.15s", letterSpacing: "0.01em" }}>{children}</button>; }
-function Btn2({ onClick, disabled, children, color = "green" }) { const c = { green: { color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" }, violet: { color: "var(--violet)", bg: "var(--violet-bg)", border: "var(--violet-border)" } }; const s = c[color]; return <button onClick={onClick} disabled={disabled} className="disabled:opacity-40 cursor-pointer flex items-center gap-1.5" style={{ color: s.color, background: s.bg, border: `1px solid ${s.border}`, fontWeight: 600, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s" }}>{children}</button>; }
-function Spinner() { return <span className="spinner" />; }
 function Sel({ value, onChange, options }) { return <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>; }
-function Badge({ children, color = "default" }) { const c = { default: { bg: "var(--bg-inset)", color: "var(--text-tertiary)", border: "var(--border)" }, orange: { bg: "var(--accent-bg)", color: "var(--accent)", border: "var(--accent-border)" }, green: { bg: "var(--green-bg)", color: "var(--green)", border: "var(--green-border)" }, violet: { bg: "var(--violet-bg)", color: "var(--violet)", border: "var(--violet-border)" }, red: { bg: "var(--red-bg)", color: "var(--red)", border: "var(--red-border)" } }; const s = c[color] || c.default; return <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 6, background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>{children}</span>; }
 
 // ─── Step Header ───
 function StepHeader({ number, title, subtitle }) {
@@ -121,105 +118,140 @@ function BucketRow({ bucket, count, onChange }) {
   );
 }
 
-// ─── CSV helpers ───
-function escapeCSV(val) {
-  if (!val) return "";
-  const str = String(val);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) return `"${str.replace(/"/g, '""')}"`;
-  return str;
-}
-const POST_KEYS = ["post_date", "platform", "content_format", "content_track", "bucket", "post_brief", "visual_hook", "caption", "notes"];
+// ─── Build the prompt for Claude.ai ───
+const DEGREE_SCHOOLS = ["UMA", "SNHU", "AIU", "CTU", "FSU"];
+const TRACK_DESCRIPTION = `THE "SELLING TO FEELING" FRAMEWORK
+ABSOLUTE RULE: One anchor per creative, one bucket per post. Despair and Hope must NEVER be mixed in the same post.
 
-function buildCsvString(posts) {
-  const lines = [];
-  lines.push(",,,,Links to final output");
-  for (let i = 0; i < posts.length; i++) {
-    const p = posts[i];
-    if (i > 0) { lines.push(",,,,"); lines.push(",,,,"); }
-    lines.push(`Post ${i + 1},,,,`);
-    lines.push(`,Post Date,${escapeCSV(p.post_date)},,`);
-    lines.push(`,Platform,${escapeCSV(p.platform)},,`);
-    lines.push(`,Content Track,${escapeCSV(p.content_track)},,`);
-    lines.push(`,Bucket,${escapeCSV(p.bucket)},,`);
-    lines.push(`,Content Format,${escapeCSV(p.content_format)},,`);
-    lines.push(`,Post Brief (Description),${escapeCSV(p.post_brief)},,`);
-    lines.push(`,Visual Hook (Required in Post),${escapeCSV(p.visual_hook)},,`);
-    lines.push(`,Notes,${escapeCSV(p.notes)},,`);
-    lines.push(`,Inspiration,,,`);
-    lines.push(`,Versions,,,`);
-    lines.push(`,Caption,${escapeCSV(p.caption)},,`);
-    lines.push(`,Extra Notes,,,`);
-  }
+TRACK A: Program-Specific (Conversion)
+- Anchor 1: DESPAIR
+  • Bucket A — Internal Conflict: Self-doubt, imposter syndrome, fear of change.
+  • Bucket B — Effort-Reality Gap: Working hard but getting nowhere.
+- Anchor 2: HOPE
+  • Bucket C — Emotional Validation: Make the reader feel seen and understood.
+  • Bucket D — Motivational Reframing: Reframe stuck as starting.
+- Anchor 3: BRIDGE
+  • Bucket E — Private Desire: Quiet ambitions people don't say out loud.
+  • Bucket F — Possible Paths Exist: Plant seeds of possibility without hard-selling.
+
+TRACK B: Non-Programmatic (Community/Shareability) — Ignore programs entirely.
+- Bucket G — Relatable Vent: Humor about universal work struggles.
+- Bucket H — Unpopular Opinion: Hot takes on workplace/hustle culture.
+- Bucket I — Hype-Up: Quotable inspiration about refusing to settle.`;
+
+function buildComplianceBlock(school, program) {
+  if (!school) return "";
+  const isDegree = DEGREE_SCHOOLS.includes(school);
+  const lines = [
+    `COMPLIANCE RULES`,
+    `- School: ${school} | Program: ${program}`,
+    `- Dreambound is the ONLY public brand. Never mention school names in copy.`,
+    `- No employment guarantees, outcome promises, or job placement language.`,
+    `- No "guarantee", "free", "dream career", "Fast Track".`,
+    isDegree
+      ? `- Degree program: use "study" and "education" only. Never "train"/"training". "Career" must pair with "path" or "journey".`
+      : `- Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}`,
+  ];
+  if (school === "FSU") lines.push(`- Financial aid line: "Financial Aid is available for those who qualify."`);
+  else lines.push(`- Financial aid line: "Financial aid may be available for those who qualify."`);
+  if (school === "AIU" || school === "CTU") lines.push(`- No urgency language. Always include: "Completion times vary according to the individual student."`);
   return lines.join("\n");
 }
-function downloadCSV(posts, school, program) {
-  const csv = buildCsvString(posts);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${school}_${program.replace(/\s+/g, "_")}_content_calendar.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
-// ─── Editable Data Table ───
-function EditableTable({ posts, onChange }) {
-  const fields = [
-    { key: "post_date", label: "Date", width: 95, editable: false },
-    { key: "platform", label: "Platform", width: 75, editable: false },
-    { key: "content_format", label: "Format", width: 100, editable: false },
-    { key: "content_track", label: "Track", width: 130, editable: false },
-    { key: "bucket", label: "Bucket", width: 140, editable: false },
-    { key: "post_brief", label: "Brief", width: 180, editable: true },
-    { key: "visual_hook", label: "Visual Hook", width: 280, editable: true },
-    { key: "caption", label: "Caption", width: 240, editable: true },
-    { key: "notes", label: "Notes", width: 120, editable: true },
-  ];
-  const updateCell = (rowIdx, key, value) => onChange(posts.map((p, i) => (i === rowIdx ? { ...p, [key]: value } : p)));
-  const bucketColor = (bucketStr) => { const letter = (bucketStr || "").charAt(0); if (["A", "B"].includes(letter)) return "red"; if (["C", "D"].includes(letter)) return "green"; if (["E", "F"].includes(letter)) return "violet"; return "orange"; };
+function buildContentPrompt({ trackMode, school, program, buckets, brief, dates, dateMode, dateRange, platforms, formatMix }) {
+  const totalPosts = Object.values(buckets).reduce((sum, n) => sum + n, 0);
+  const bucketBreakdown = Object.entries(buckets)
+    .filter(([, count]) => count > 0)
+    .map(([letter, count]) => `- Bucket ${letter}: ${count} post(s)`)
+    .join("\n");
 
-  return (
-    <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid var(--border)" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead>
-          <tr>
-            <th style={{ padding: "10px 8px", textAlign: "left", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", background: "var(--bg-inset)", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, zIndex: 1 }}>#</th>
-            {fields.map((f) => <th key={f.key} style={{ padding: "10px 8px", textAlign: "left", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", background: "var(--bg-inset)", borderBottom: "1px solid var(--border)", minWidth: f.width, position: "sticky", top: 0, zIndex: 1 }}>{f.label}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {posts.map((post, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
-              <td style={{ padding: "8px", color: "var(--text-tertiary)", fontWeight: 600, verticalAlign: "top" }}>{i + 1}</td>
-              {fields.map((f) => f.editable ? (
-                <td key={f.key} style={{ padding: "4px", verticalAlign: "top" }}>
-                  <textarea value={post[f.key] || ""} onChange={(e) => updateCell(i, f.key, e.target.value)} rows={3}
-                    style={{ width: "100%", minWidth: f.width, background: "transparent", border: "1px solid transparent", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "var(--text)", resize: "vertical", outline: "none", lineHeight: 1.5, fontFamily: "'Inter', system-ui, sans-serif", transition: "border-color 0.15s" }}
-                    onFocus={(e) => { e.target.style.borderColor = "var(--accent-border)"; e.target.style.background = "var(--bg-inset)"; }}
-                    onBlur={(e) => { e.target.style.borderColor = "transparent"; e.target.style.background = "transparent"; }}
-                  />
-                </td>
-              ) : (
-                <td key={f.key} style={{ padding: "8px", verticalAlign: "top", fontSize: 12, color: "var(--text-secondary)" }}>
-                  {f.key === "bucket" ? <Badge color={bucketColor(post[f.key])}>{post[f.key]}</Badge>
-                    : f.key === "content_track" ? <Badge color={post[f.key]?.includes("Program") ? "violet" : "orange"}>{post[f.key]}</Badge>
-                    : post[f.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  let dateInstruction = "";
+  if (dateMode === "dates" && dates?.length) {
+    dateInstruction = `Distribute posts across these exact dates: ${dates.join(", ")}`;
+  } else if (dateMode === "range" && dateRange?.start && dateRange?.end) {
+    dateInstruction = `Distribute posts evenly from ${dateRange.start} to ${dateRange.end}`;
+  }
+
+  let formatInstruction;
+  if (formatMix && Object.values(formatMix).some((v) => v > 0)) {
+    const parts = Object.entries(formatMix)
+      .filter(([, count]) => count > 0)
+      .map(([fmt, count]) => `${count} ${fmt}`)
+      .join(", ");
+    formatInstruction = `Content format distribution: ${parts}. Assign formats to posts accordingly.`;
+  } else {
+    formatInstruction = `Assign content formats to each post. Default to "Image (4:5)" for image posts and "Video (9:16)" for video posts. Mix both image and video formats for variety.`;
+  }
+
+  const programLine =
+    trackMode !== "B" && school && program
+      ? `Program Context: ${school} — ${program}\nWeave the program/field into Track A copy naturally without naming the school directly.`
+      : "";
+  const briefLine = brief ? `Creative Brief / Direction:\n${brief}` : "";
+  const compliance = trackMode !== "B" ? buildComplianceBlock(school, program) : "";
+
+  return `# Dreambound Content Calendar — Generate ${totalPosts} Posts
+You are an expert social media copywriter and content calendar strategist for Dreambound, an education marketing brand. You operate under the "Selling to Feeling" framework. Your job is to generate a full organic content calendar with copy already written for each post.
+
+═══════════════════════════════════════════
+${TRACK_DESCRIPTION}
+═══════════════════════════════════════════
+${compliance ? `\n${compliance}\n` : ""}
+OUTPUT FORMAT:
+Return a markdown table with these columns: Post Date, Platform, Content Format, Content Track, Bucket, Post Brief, Visual Hook, Caption, Notes.
+
+BUCKET FULL NAMES (use these exact labels):
+- A — Internal Conflict
+- B — Effort-Reality Gap
+- C — Emotional Validation
+- D — Motivational Reframing
+- E — Private Desire
+- F — Possible Paths Exist
+- G — Relatable Vent
+- H — Unpopular Opinion
+- I — Hype-Up
+
+RULES:
+- Each post uses ONE anchor and ONE bucket only.
+- Despair buckets (A, B) and Hope buckets (C, D) must NEVER be mixed in the same post.
+- Bridge buckets (E, F) lean hopeful but not overtly promotional.
+- Track B posts (G, H, I) must never mention any school, program, or educational offering.
+
+VISUAL HOOK (most important field — the visual IS the hook in social media):
+- We do NOT shoot talking-head or selfie-cam videos. Our creative style is TEXT ON B-ROLL.
+- All videos use thematic B-roll footage (stock, cinematic, trending) with bold text overlays.
+- Be EXTREMELY specific. Describe the B-roll scene (setting, movement, mood, color grade, lighting), the exact text overlay (wording, font style, placement, animation), and how they work together to stop the scroll in the first 1-3 seconds.
+- For images: describe composition, focal point, text placement, font style, and visual contrast.
+- NEVER suggest talking-head, direct-to-camera, or selfie-style content.
+
+CAPTION (keep it SHORT — social media users don't read essays):
+- Hook line: punchy, scroll-stopping, under 15 words.
+- Body: 1-2 SHORT sentences max.
+- CTA: one clear line.
+- Total caption should feel like a text from a friend, not a blog post.
+
+═══════════════════════════════════════════
+JOB PARAMETERS
+═══════════════════════════════════════════
+
+Generate exactly ${totalPosts} organic social media posts.
+
+BUCKET DISTRIBUTION (follow exactly):
+${bucketBreakdown}
+
+${dateInstruction}
+Platforms to use: ${platforms.join(", ")}
+${formatInstruction}
+${programLine}
+${briefLine}
+
+Each post must strictly follow its assigned bucket's emotional directive. Vary hooks, angles, visual suggestions, and formats across posts for maximum content diversity.`;
 }
 
 // ─── Main Wizard Component ───
 export default function ContentEngineTab() {
-  // Step 1: Brief & Inspo
+  // Step 1: Brief
   const [brief, setBrief] = useState("");
-  const [inspoImages, setInspoImages] = useState([]);
   // Step 2: Schedule
   const [platforms, setPlatforms] = useState(["Instagram"]);
   const [dateMode, setDateMode] = useState("dates");
@@ -233,10 +265,9 @@ export default function ContentEngineTab() {
   // Step 5: Content Engine
   const [trackMode, setTrackMode] = useState("mixed");
   const [bucketCounts, setBucketCounts] = useState({ A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, G: 0, H: 0, I: 0 });
-  // Results
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [sheetsUploading, setSheetsUploading] = useState(false);
+  // Output
+  const [copied, setCopied] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const tog = (arr, setter, val) => setter((p) => p.includes(val) ? p.filter((x) => x !== val) : [...p, val]);
   const schoolChange = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
@@ -247,119 +278,43 @@ export default function ContentEngineTab() {
   };
   const activeBuckets = trackMode === "A" ? TRACK_A_BUCKETS : trackMode === "B" ? TRACK_B_BUCKETS : [...TRACK_A_BUCKETS, ...TRACK_B_BUCKETS];
 
-  // Image upload
-  const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-  const handleImageFiles = (files) => {
-    const valid = Array.from(files).filter((f) => ACCEPTED_TYPES.includes(f.type));
-    if (!valid.length) { toast.error("Only JPEG, PNG, and WebP images"); return; }
-    const remaining = 3 - inspoImages.length;
-    if (remaining <= 0) { toast.error("Maximum 3 images"); return; }
-    valid.slice(0, remaining).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => setInspoImages((prev) => prev.length >= 3 ? prev : [...prev, { file, preview: ev.target.result, mediaType: file.type }]);
-      reader.readAsDataURL(file);
-    });
+  const promptParams = () => {
+    const activeBucketLetters = trackMode === "A" ? ["A","B","C","D","E","F"] : trackMode === "B" ? ["G","H","I"] : ["A","B","C","D","E","F","G","H","I"];
+    const filteredBuckets = {};
+    for (const l of activeBucketLetters) { if (bucketCounts[l] > 0) filteredBuckets[l] = bucketCounts[l]; }
+    return {
+      trackMode, school, program,
+      buckets: filteredBuckets,
+      brief: brief.trim(),
+      dates, dateMode, dateRange, platforms,
+      formatMix: Object.values(formatCounts).some((v) => v > 0) ? formatCounts : null,
+    };
   };
-  const removeImage = (idx) => setInspoImages((prev) => prev.filter((_, i) => i !== idx));
-  const handleDrop = (e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--border)"; handleImageFiles(e.dataTransfer.files); };
-  const handleDragOver = (e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--accent)"; };
-  const handleDragLeave = (e) => { e.currentTarget.style.borderColor = "var(--border)"; };
 
   // Validation
   const hasDates = dateMode === "dates" ? dates.length > 0 : (dateRange.start && dateRange.end);
-  const hasBrief = brief.trim().length > 0 || inspoImages.length > 0;
-  const canGenerate = hasBrief && hasDates && platforms.length > 0 && totalBucketCount() > 0;
+  const hasBrief = brief.trim().length > 0;
+  const canCopy = hasBrief && hasDates && platforms.length > 0 && totalBucketCount() > 0;
 
-  // Generate
-  const generate = async () => {
-    if (!canGenerate) return;
-    if (posts.length > 0 && !window.confirm("You have unsaved posts. Generating new content will replace them. Continue?")) return;
-    setLoading(true);
-    try {
-      const activeBucketLetters = trackMode === "A" ? ["A","B","C","D","E","F"] : trackMode === "B" ? ["G","H","I"] : ["A","B","C","D","E","F","G","H","I"];
-      const filteredBuckets = {};
-      for (const l of activeBucketLetters) { if (bucketCounts[l] > 0) filteredBuckets[l] = bucketCounts[l]; }
-
-      let images = null;
-      if (inspoImages.length > 0) {
-        images = inspoImages.map((img) => ({ data: img.preview.split(",")[1], mediaType: img.mediaType }));
-      }
-
-      const payload = {
-        trackMode,
-        programContext: { school, program },
-        buckets: filteredBuckets,
-        brief: brief.trim(),
-        images,
-        dates, dateMode, dateRange, platforms,
-        formatMix: Object.values(formatCounts).some((v) => v > 0) ? formatCounts : null,
-      };
-
-      const res = await fetch("/api/generate-content-engine", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (res.status === 504) throw new Error("Request timed out — try generating fewer posts per batch.");
-      const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch { throw new Error("Server returned an invalid response — try generating fewer posts."); }
-      if (data.error) throw new Error(data.error);
-      setPosts(data.posts);
-      toast.success(`Generated ${data.posts.length} posts`);
-    } catch (err) {
-      toast.error(err.message || "Generation failed.");
-    } finally { setLoading(false); }
-  };
-
-  // Google Sheets upload
-  const uploadToSheets = async () => {
-    if (!posts.length) return;
-    setSheetsUploading(true);
-    try {
-      const csvData = buildCsvString(posts);
-      const fileName = `${school} - ${program} - Content Calendar`;
-      const r = await fetch("/api/upload-to-sheets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csvData, fileName }) });
-      const d = await r.json();
-      if (d.error) throw new Error(d.error);
-      window.open(d.url, "_blank");
-      toast.success("Uploaded to Google Drive");
-    } catch (e) { toast.error(e.message); } finally { setSheetsUploading(false); }
+  const copyPrompt = () => {
+    if (!canCopy) return;
+    navigator.clipboard.writeText(buildContentPrompt(promptParams()));
+    setCopied(true);
+    toast.success("Prompt copied — paste into Claude.ai");
+    setTimeout(() => setCopied(false), 2500);
   };
 
   return (
     <div className="space-y-5">
 
-      {/* ─── Step 1: Brief & Inspiration ─── */}
+      {/* ─── Step 1: Brief ─── */}
       <Card>
         <div style={{ padding: 24 }} className="space-y-4">
-          <StepHeader number={1} title="Brief & Inspiration" subtitle="Text prompt required. Image inspo optional." />
+          <StepHeader number={1} title="Creative Brief" subtitle="Describe the campaign direction, tone, or anything Claude should know." />
           <div>
             <Lbl>Creative Brief / Direction</Lbl>
-            <textarea value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="Describe the campaign theme, direction, tone, or anything the AI should know..." rows={3}
+            <textarea value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="e.g. Q3 push for working adults considering a career change. Lean hopeful, lots of relatable mid-week venting." rows={3}
               style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical", fontFamily: "'Inter', system-ui, sans-serif" }} />
-          </div>
-          <div>
-            <Lbl>Inspiration Images (Optional — Max 3)</Lbl>
-            <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}
-              onClick={() => { if (inspoImages.length < 3) document.getElementById("wizard-inspo-upload")?.click(); }}
-              className="cursor-pointer"
-              style={{ border: "2px dashed var(--border)", borderRadius: 12, padding: inspoImages.length ? "16px" : "24px 16px", textAlign: "center", transition: "border-color 0.2s", background: "var(--bg-inset)" }}>
-              {inspoImages.length === 0 && (
-                <div>
-                  <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="var(--text-tertiary)" strokeWidth={1.5} style={{ margin: "0 auto 6px" }}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  <p style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 500 }}>Drop images here or click to upload</p>
-                </div>
-              )}
-              {inspoImages.length > 0 && (
-                <div className="flex gap-3 flex-wrap justify-center" onClick={(e) => e.stopPropagation()}>
-                  {inspoImages.map((img, i) => (
-                    <div key={i} style={{ position: "relative", width: 64, height: 64, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)" }}>
-                      <img src={img.preview} alt={`Inspo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      <button onClick={(e) => { e.stopPropagation(); removeImage(i); }} className="cursor-pointer" style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, borderRadius: 99, background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", fontSize: 10, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>&times;</button>
-                    </div>
-                  ))}
-                  {inspoImages.length < 3 && <button onClick={() => document.getElementById("wizard-inspo-upload")?.click()} className="cursor-pointer" style={{ width: 64, height: 64, borderRadius: 8, border: "2px dashed var(--border)", background: "transparent", color: "var(--text-tertiary)", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>}
-                </div>
-              )}
-              <input id="wizard-inspo-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display: "none" }} onChange={(e) => { handleImageFiles(e.target.files); e.target.value = ""; }} />
-            </div>
           </div>
         </div>
       </Card>
@@ -431,48 +386,36 @@ export default function ContentEngineTab() {
         </div>
       </Card>
 
-      {/* ─── Generate Button ─── */}
-      <div className="flex items-center gap-4">
-        <Btn onClick={generate} disabled={loading || !canGenerate}>
-          {loading ? <><Spinner /> Generating…</> : <><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>Generate Content Calendar</>}
+      {/* ─── Copy Prompt Button ─── */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <Btn onClick={copyPrompt} disabled={!canCopy}>
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+          {copied ? "Copied!" : "Copy Prompt for Claude"}
         </Btn>
         <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
           {totalBucketCount()} post{totalBucketCount() !== 1 ? "s" : ""} queued
-          {!canGenerate && !loading && <span style={{ color: "var(--red)", marginLeft: 8 }}>
-            {!hasBrief ? "— add a brief or image" : !hasDates ? "— add dates" : platforms.length === 0 ? "— select platforms" : totalBucketCount() === 0 ? "— set bucket quantities" : ""}
+          {!canCopy && <span style={{ color: "var(--red)", marginLeft: 8 }}>
+            {!hasBrief ? "— add a brief" : !hasDates ? "— add dates" : platforms.length === 0 ? "— select platforms" : totalBucketCount() === 0 ? "— set bucket quantities" : ""}
           </span>}
         </span>
       </div>
 
-      {/* ─── Results ─── */}
-      <AnimatePresence>
-        {posts.length > 0 && (
-          <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-            <Card>
-              <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }} className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Content Calendar</h3>
-                  <Badge color="orange">{posts.length} posts</Badge>
-                </div>
-                <div className="flex gap-2">
-                  <Btn2 onClick={uploadToSheets} disabled={sheetsUploading} color="green">
-                    {sheetsUploading ? <><Spinner /> Uploading...</> : <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>CSV to GDrive</>}
-                  </Btn2>
-                  <Btn2 onClick={() => { downloadCSV(posts, school, program); toast.success("CSV downloaded"); }}>
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV
-                  </Btn2>
-                  <button onClick={() => { if (window.confirm("Remove all generated posts?")) setPosts([]); }} className="cursor-pointer flex items-center gap-1.5" style={{ color: "var(--red)", background: "var(--red-bg)", border: "1px solid var(--red-border)", fontWeight: 600, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s" }}>
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>Remove Posts
-                  </button>
-                </div>
+      {/* ─── Prompt preview ─── */}
+      {canCopy && (
+        <Card className="overflow-hidden">
+          <button onClick={() => setShowPreview(!showPreview)} className="cursor-pointer w-full flex items-center justify-between" style={{ padding: "10px 16px", background: "var(--accent-bg)", border: "none" }}>
+            <p style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>Paste into Claude.ai to generate {totalBucketCount()} post{totalBucketCount() !== 1 ? "s" : ""}</p>
+            <svg style={{ color: "var(--accent)", transform: showPreview ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          <AnimatePresence>{showPreview && (
+            <MotionDiv initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+              <div style={{ padding: 16, background: "var(--bg-inset)", maxHeight: 400, overflow: "auto" }}>
+                <pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{buildContentPrompt(promptParams())}</pre>
               </div>
-              <div style={{ padding: 16 }}>
-                <EditableTable posts={posts} onChange={setPosts} />
-              </div>
-            </Card>
-          </MotionDiv>
-        )}
-      </AnimatePresence>
+            </MotionDiv>
+          )}</AnimatePresence>
+        </Card>
+      )}
     </div>
   );
 }

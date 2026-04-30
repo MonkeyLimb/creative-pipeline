@@ -52,24 +52,6 @@ function Lbl({ children }) { return <div style={{ fontSize: 11, fontWeight: 600,
 
 function Card({ children, className = "" }) { return <div className={className} style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", borderRadius: 16, boxShadow: "var(--card-shadow)" }}>{children}</div>; }
 
-function Badge({ children, color = "default" }) {
-  const c = { default: { bg: "var(--bg-inset)", color: "var(--text-tertiary)", border: "var(--border)" }, orange: { bg: "var(--accent-bg)", color: "var(--accent)", border: "var(--accent-border)" }, green: { bg: "var(--green-bg)", color: "var(--green)", border: "var(--green-border)" }, violet: { bg: "var(--violet-bg)", color: "var(--violet)", border: "var(--violet-border)" } };
-  const s = c[color] || c.default;
-  return <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 6, background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>{children}</span>;
-}
-
-function Btn({ onClick, disabled, children }) {
-  return <button onClick={onClick} disabled={disabled} className="disabled:opacity-40 cursor-pointer flex items-center gap-2" style={{ background: "var(--accent)", color: "#fff", fontWeight: 700, padding: "11px 24px", borderRadius: 12, fontSize: 13, border: "none", boxShadow: "var(--accent-glow)", transition: "all 0.15s", letterSpacing: "0.01em" }}>{children}</button>;
-}
-
-function Btn2({ onClick, disabled, children, color = "green" }) {
-  const c = { green: { color: "var(--green)", bg: "var(--green-bg)", border: "var(--green-border)" }, violet: { color: "var(--violet)", bg: "var(--violet-bg)", border: "var(--violet-border)" } };
-  const s = c[color];
-  return <button onClick={onClick} disabled={disabled} className="disabled:opacity-40 cursor-pointer flex items-center gap-1.5" style={{ color: s.color, background: s.bg, border: `1px solid ${s.border}`, fontWeight: 600, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s" }}>{children}</button>;
-}
-
-function Spinner() { return <span className="spinner" />; }
-
 function Sel({ value, onChange, options }) {
   return <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 14px", fontSize: 13, color: "var(--text)", outline: "none", cursor: "pointer" }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select>;
 }
@@ -84,45 +66,11 @@ function SPSelect({ school, program, onS, onP }) {
   );
 }
 
-function DetailRow({ label, value }) {
-  if (!value) return null;
-  return <div style={{ padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}><div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div><div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65 }}>{value}</div></div>;
-}
-
-// ─── Cards ───
-
-function AdCard({ ad, i }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <MotionDiv initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04, duration: 0.3 }}>
-      <Card className="overflow-hidden">
-        <div onClick={() => setOpen(!open)} className="cursor-pointer" style={{ padding: "16px 20px", transition: "background 0.1s" }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1.5 flex-wrap"><span style={{ fontSize: 10, fontFamily: "monospace", color: "var(--text-tertiary)", background: "var(--bg-inset)", padding: "1px 6px", borderRadius: 4 }}>{i + 1}</span><Badge color="orange">{ad.hook_format}</Badge><Badge color="violet">{ad.messaging_archetype}</Badge></div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>{ad.hook_text}</p>
-              <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>{ad.subtext}</p>
-            </div>
-            <svg className="shrink-0 mt-0.5" style={{ color: "var(--text-tertiary)", transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-          </div>
-        </div>
-        <AnimatePresence>{open && (
-          <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-            <div style={{ padding: "0 20px 16px", borderTop: "1px solid var(--border-subtle)" }}>
-              <div style={{ paddingTop: 8 }}><DetailRow label="CTA" value={ad.cta} /><DetailRow label="Avatar Type" value={ad.avatar_type} /><DetailRow label="Offer Angle" value={ad.offer_angle} /><DetailRow label="AI Visual Prompt" value={ad.ai_visual_prompt} /><DetailRow label="Pexels Query" value={ad.pexels_query} /><DetailRow label="Font Style" value={ad.font_color && `${ad.font_color} · ${ad.font_weight} · ${ad.font_size}px · ${ad.font_style}`} /><DetailRow label="Compliance" value={ad.compliance_notes} /></div>
-            </div>
-          </MotionDiv>
-        )}</AnimatePresence>
-      </Card>
-    </MotionDiv>
-  );
-}
-
 // ─── Guide Sidebar ───
 function GuideSidebar({ open, onClose }) {
   const data = [
-    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Select school and program", "Pick dates or a date range with posts-per-day cadence", "Tap platforms, sizes, ICPs, tones, hooks", "Generate — AI creates compliant briefs", "Expand posts to review all details", "Export CSV to Google Drive"] },
-    { t: "Paid Ads CSV", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", steps: ["Pick school, program, platform, type", "Select ICP targets, tones, archetypes", "Choose number of ads", "Generate compliant ad copy", "Copy for Canva — paste into Claude Chat", "Claude generates Canva designs automatically"] },
+    { t: "Content Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", steps: ["Write a creative brief", "Pick dates, platforms, school + program", "Optionally set format mix (image/video/carousel)", "Set posts-per-bucket using the Selling to Feeling framework", "Click Copy Prompt — paste into Claude.ai", "Claude generates the full content calendar in chat"] },
+    { t: "Ad Creatives", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", steps: ["Pick school, program, platform, type, format", "Select ICPs, tones, hook archetypes, ad count", "Click Copy for Canva — paste into Claude.ai with Canva MCP", "Claude writes the ads and creates Canva designs in one pass", "Or use Pexels + Style for stock-photo designs instead"] },
   ];
   return (
     <AnimatePresence>
@@ -174,34 +122,74 @@ function PaidAdsTab() {
   const [hooks, setHooks] = useState(["Objection Flip", "Transformation"]);
   const [ac, setAc] = useState(5);
   const [ctx, setCtx] = useState("");
-  const [ads, setAds] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
   const [showMore, setShowMore] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(null);
   const tog = (a, s, v) => s((p) => p.includes(v) ? p.filter((x) => x !== v) : [...p, v]);
   const sc = (s) => { setSchool(s); setProgram(SP[s]?.[0] || ""); };
   const isGeneral = school === "General";
-  const gen = async () => {
-    setLoading(true); setAds([]);
-    try {
-      const r = await fetch("/api/generate-ads-csv", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ school, program, platform: plat, creative_type: ct, format: fmt, icps, tones, hooks, ad_count: ac, extra_context: ctx }) });
-      const d = await r.json(); if (d.error) throw new Error(d.error);
-      setAds(d.ads); toast.success(`Generated ${d.ads.length} ads`);
-    } catch (e) { toast.error(e.message); } finally { setLoading(false); }
+
+  // ─── Build the smart prompt file for Claude.ai + Canva MCP ───
+  const DEGREE_SCHOOLS = ["UMA", "SNHU", "AIU", "CTU", "FSU"];
+
+  const complianceLines = () => {
+    const isDegree = DEGREE_SCHOOLS.includes(school);
+    const lines = [
+      `- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}`,
+      `- No employment guarantees, outcome promises, or job placement language.`,
+      `- No "guarantee", "free", "dream career", "Fast Track".`,
+    ];
+    if (!isGeneral && isDegree) lines.push(`- This is a DEGREE program: use "study" and "education" only. Never "train"/"training". "Career" must pair with "path" or "journey".`);
+    if (!isGeneral && !isDegree) lines.push(`- This is a CERTIFICATE program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}`);
+    if (isGeneral) lines.push(`- General Dreambound content: focus on brand values, education marketplace positioning, and aspirational messaging.`);
+    if (school === "FSU") lines.push(`- FSU financial aid line: "Financial Aid is available for those who qualify." (exact wording)`);
+    else if (!isGeneral && ct === "Paid") lines.push(`- Financial aid line: "Financial aid may be available for those who qualify."`);
+    if (school === "AIU" || school === "CTU") lines.push(`- ${school}: No urgency language. Always include "Completion times vary according to the individual student."`);
+    return lines.join("\n");
   };
 
-  // ─── Build the smart prompt file for Claude Chat + Canva MCP ───
-  const DEGREE_SCHOOLS = ["UMA", "SNHU", "AIU", "CTU", "FSU"];
+  const adGenSection = () => `## STEP A: Write the ${ac} Ads
+You are a compliant paid ad copywriter for Dreambound.
+School: ${school} | Program: ${program} | Platform: ${plat} | Creative type: ${ct} | Format: ${fmt}
+
+Generate exactly ${ac} unique paid ad creatives. Distribute across these combinations (vary as much as possible — different ICP + tone + hook per ad):
+- ICP targets: ${icps.join(", ")}
+- Tones: ${tones.join(", ")}
+- Hook archetypes: ${hooks.join(", ")}
+
+Each ad must:
+- Use a different ICP + tone + hook combination
+- Have a compelling, scroll-stopping hook
+- Use B-roll + text overlay style for any visual direction (NO talking-head or selfie videos — we use thematic B-roll footage with bold on-screen text)
+- Be fully compliant with the rules below
+
+${ctx ? `Additional context:\n${ctx}\n` : ""}
+For each ad, produce these fields:
+- Hook Format: the hook archetype used
+- Messaging Archetype: the messaging archetype/tone
+- Hook Text: the headline (large, bold, scroll-stopping)
+- Subtext: supporting body copy
+- CTA: call to action text
+- AI Visual Prompt: detailed B-roll + text overlay description (setting, movement, mood, color grade, lighting, exact on-screen text, font style, placement)
+- Pexels Query: 2-5 word search query for Pexels stock photo (literal scene, e.g. "clean clinic room" not "healthcare"; no brand names, no faces, no overlays)
+- Font Color: hex color for headline text, picked for contrast against the likely Pexels image
+- Font Weight: bold or normal
+- Font Size: integer px (larger for short hooks)
+- Font Style: normal or italic
+
+COMPLIANCE RULES (CRITICAL):
+${complianceLines()}
+
+---
+
+`;
   const buildPrompt = () => {
-    if (!ads.length) return "";
-    const isDegree = DEGREE_SCHOOLS.includes(school);
     const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
     const dim = dims[plat] || "1080x1350";
     const isCarousel = fmt === "Carousel";
     const folderName = isGeneral ? `Dreambound - ${program} - ${plat} ${ct}` : `${school} - ${program} - ${plat} ${ct}`;
 
-    let prompt = `# Dreambound Canva Design Job
+    return `# Dreambound Canva Design Job
 ## STEP 0: Verify Canva MCP Connection
 Before doing anything else, confirm you have access to Canva MCP tools. Try listing your available tools and verify you can see: generate_design, perform_editing_operations, create_folder, move_item_to_folder, and get_design.
 
@@ -209,19 +197,19 @@ If you do NOT have Canva connected:
 - Tell me "Canva MCP is not connected. Please enable it in your MCP settings first."
 - Stop here. Do not proceed.
 
-If you DO have Canva connected, say "Canva MCP verified." and proceed to Step 1.
+If you DO have Canva connected, say "Canva MCP verified." and proceed to Step A.
 
 ---
 
-## STEP 1: Create Folder
+${adGenSection()}## STEP B: Create Folder
 Create a Canva folder named: "${folderName}"
 Save the folder ID for organizing designs later.
 
 ---
 
-## STEP 2: Generate Designs
-Process each ad below ONE AT A TIME. For each ad:
-1. Use generate_design with the AI Visual Prompt below. Target size: ${dim}. Make it a ${plat} ${ct.toLowerCase()} ad.${isCarousel ? `
+## STEP C: Generate Designs (${ac} total${isCarousel ? " — CAROUSEL format" : ""})
+For each ad you wrote in Step A, ONE AT A TIME:
+1. Use generate_design with the AI Visual Prompt for that ad. Target size: ${dim}. Make it a ${plat} ${ct.toLowerCase()} ad.${isCarousel ? `
    - This is a CAROUSEL. Generate a multi-page design (3-5 slides per ad).
    - Slide 1: Hook Text as bold headline with striking visual.
    - Slides 2-3: Subtext broken across slides with supporting visuals.
@@ -232,56 +220,27 @@ Process each ad below ONE AT A TIME. For each ad:
    - Hook Text as the primary headline (large, bold, high contrast)
    - Subtext as supporting body copy (smaller, below headline)
    - CTA as button or bottom banner text (clear, actionable)`}
-3. Use move_item_to_folder to put the design in the folder from Step 1.
+3. Use move_item_to_folder to put the design in the folder from Step B.
 4. Report the design URL before moving to the next ad.
 
-COMPLIANCE RULES (CRITICAL):
-- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}
-- No employment guarantees, outcome promises, or job placement language.
-- No "guarantee", "free", "dream career", "Fast Track".
-${!isGeneral && isDegree ? `- This is a DEGREE program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- This is a CERTIFICATE program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values, education marketplace positioning, and aspirational messaging.` : ""}
-${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for those who qualify." (exact wording)\n' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency language. Include "Completion times vary according to the individual student."\n` : ""}
 ---
 
-## ADS TO GENERATE (${ads.length} total${isCarousel ? " — CAROUSEL format" : ""})
-`;
-
-    ads.forEach((ad, i) => {
-      prompt += `
-### Ad ${i + 1} of ${ads.length}
-- **Hook Format:** ${ad.hook_format}
-- **Messaging Archetype:** ${ad.messaging_archetype}
-- **Hook Text:** ${ad.hook_text}
-- **Subtext:** ${ad.subtext}
-- **CTA:** ${ad.cta}
-- **AI Visual Prompt:** ${ad.ai_visual_prompt}
-`;
-    });
-
-    prompt += `
----
-
-## STEP 3: Summary
-After all ${ads.length} designs are generated, provide a summary table:
+## STEP D: Summary
+After all ${ac} designs are generated, provide a summary table:
 | Ad # | Hook Text (first 30 chars) | Design URL | Status |
 |------|---------------------------|------------|--------|
 
-Then confirm: "All ${ads.length} designs generated and organized in the '${folderName}' folder."
+Then confirm: "All ${ac} designs generated and organized in the '${folderName}' folder."
 `;
-
-    return prompt;
   };
 
-  // ─── Build the Pexels + Style prompt (stock photo alternative to AI generation) ───
   const buildPexelsPrompt = () => {
-    if (!ads.length) return "";
-    const isDegree = DEGREE_SCHOOLS.includes(school);
     const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
     const dim = dims[plat] || "1080x1350";
     const isCarousel = fmt === "Carousel";
     const folderName = isGeneral ? `Dreambound - ${program} - ${plat} ${ct} (Pexels)` : `${school} - ${program} - ${plat} ${ct} (Pexels)`;
 
-    let prompt = `# Dreambound Canva Design Job — Pexels Stock Photo
+    return `# Dreambound Canva Design Job — Pexels Stock Photo
 ## STEP 0: Verify Canva MCP Connection
 Before doing anything else, confirm you have access to Canva MCP tools. Try listing your available tools and verify you can see: generate_design, perform_editing_operations, create_folder, move_item_to_folder, upload_asset_from_url, start_editing_transaction, commit_editing_transaction, and get_design.
 
@@ -289,20 +248,20 @@ If you do NOT have Canva connected:
 - Tell me "Canva MCP is not connected. Please enable it in your MCP settings first."
 - Stop here. Do not proceed.
 
-If you DO have Canva connected, say "Canva MCP verified." and proceed to Step 1.
+If you DO have Canva connected, say "Canva MCP verified." and proceed to Step A.
 
 ---
 
-## STEP 1: Create Folder
+${adGenSection()}## STEP B: Create Folder
 Create a Canva folder named: "${folderName}"
 Save the folder ID for organizing designs later.
 
 ---
 
-## STEP 2: Build Designs from Pexels Stock Photos
-Process each ad below ONE AT A TIME. For each ad:
+## STEP C: Build Designs from Pexels Stock Photos (${ac} total${isCarousel ? " — CAROUSEL format" : ""})
+For each ad you wrote in Step A, ONE AT A TIME:
 
-1. **Search Pexels:** Go to pexels.com and search for the "Pexels Query" listed for that ad. Pick the top result. Copy its direct image URL.
+1. **Search Pexels:** Go to pexels.com and search for that ad's Pexels Query. Pick the top result. Copy its direct image URL.
 
 2. **Upload to Canva:** Use upload-asset-from-url with the Pexels image URL. Name it after the ad (e.g. "Ad 1 - {first few words of hook}").
 
@@ -322,113 +281,34 @@ Process each ad below ONE AT A TIME. For each ad:
    - Hook Text as the primary headline (large, bold, high contrast)
    - Subtext as supporting body copy (smaller, below headline)
    - CTA as button or bottom banner text (clear, actionable)`}
-   Then use perform-editing-operations → format_text to apply the font styling listed for that ad:
-   - color: Font Color (hex)
-   - font_weight: Font Weight
-   - font_size: Font Size (px)
-   - font_style: Font Style
-   Apply to ALL richtext element_ids in the design.
+   Then use perform-editing-operations → format_text to apply the font styling from the ad spec (Font Color, Font Weight, Font Size, Font Style). Apply to ALL richtext element_ids in the design.
 
 7. **Commit:** Use commit-editing-transaction.
 
-8. Use move_item_to_folder to put the design in the folder from Step 1.
+8. Use move_item_to_folder to put the design in the folder from Step B.
 
 9. Report the design URL before moving to the next ad.
 
-COMPLIANCE RULES (CRITICAL):
-- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER put "${school}" or any school name in the design.` : ""}
-- No employment guarantees, outcome promises, or job placement language.
-- No "guarantee", "free", "dream career", "Fast Track".
-${!isGeneral && isDegree ? `- This is a DEGREE program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- This is a CERTIFICATE program: "training" is acceptable.${school === "CCI" ? " Urgency language is OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values, education marketplace positioning, and aspirational messaging.` : ""}
-${school === "FSU" ? '- FSU financial aid line: "Financial Aid is available for those who qualify." (exact wording)\n' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency language. Include "Completion times vary according to the individual student."\n` : ""}
 ---
 
-## ADS TO CREATE (${ads.length} total${isCarousel ? " — CAROUSEL format" : ""})
-`;
-
-    ads.forEach((ad, i) => {
-      prompt += `
-### Ad ${i + 1} of ${ads.length}
-- **Hook Format:** ${ad.hook_format}
-- **Messaging Archetype:** ${ad.messaging_archetype}
-- **Hook Text:** ${ad.hook_text}
-- **Subtext:** ${ad.subtext}
-- **CTA:** ${ad.cta}
-- **Pexels Query:** ${ad.pexels_query || "stock photo professional"}
-- **Font Color:** ${ad.font_color || "#FFFFFF"}
-- **Font Weight:** ${ad.font_weight || "bold"}
-- **Font Size:** ${ad.font_size || 48}
-- **Font Style:** ${ad.font_style || "normal"}
-`;
-    });
-
-    prompt += `
----
-
-## STEP 3: Summary
-After all ${ads.length} designs are created, provide a summary table:
+## STEP D: Summary
+After all ${ac} designs are created, provide a summary table:
 | Ad # | Hook Text (first 30 chars) | Pexels Query | Design URL | Status |
 |------|---------------------------|--------------|------------|--------|
 
-Then confirm: "All ${ads.length} designs created with Pexels stock photos and organized in the '${folderName}' folder."
+Then confirm: "All ${ac} designs created with Pexels stock photos and organized in the '${folderName}' folder."
 `;
-
-    return prompt;
   };
 
-  const csvRaw = () => {
-    if (!ads.length) return "";
-    const h = "Program,Hook Format,Messaging Archetype,Avatar Type,Offer Angle,Hook Text,Subtext,CTA,AI Visual Prompt,Pexels Query,Font Color,Font Weight,Font Size,Font Style";
-    const rows = ads.map((a) => [program, a.hook_format, a.messaging_archetype, a.avatar_type, a.offer_angle, a.hook_text, a.subtext, a.cta, a.ai_visual_prompt, a.pexels_query, a.font_color, a.font_weight, a.font_size, a.font_style].map((v) => `"${(String(v || "")).replace(/"/g, '""')}"`).join(","));
-    return [h, ...rows].join("\n");
+  const copyTo = (text, key, label) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    toast.success(`${label} — paste into Claude.ai`);
+    setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 2500);
   };
-  const csvWithInstructions = () => {
-    if (!ads.length) return "";
-    const csvData = csvRaw();
-    const isDegree = DEGREE_SCHOOLS.includes(school);
-    const isGeneral = school === "General";
-    const dims = { Instagram: "1080x1350 (4:5)", Facebook: "1080x1080 (1:1)", TikTok: "1080x1920 (9:16)" };
-    const dim = dims[plat] || "1080x1350";
-    const isCarousel = fmt === "Carousel";
-
-    return `# Dreambound ${ct} Ad Creatives — Design in Canva
-## Context
-- School: ${school}
-- Program: ${program}
-- Platform: ${plat}
-- Type: ${ct}
-- Format: ${fmt}${isCarousel ? " (Carousel)" : ""}
-- Target Size: ${dim}
-
-## Instructions
-Below is a CSV of ${ads.length} ad creatives. For each row, design a ${plat} ${ct.toLowerCase()} ad in Canva:
-
-1. Use "Hook Text" as the primary headline (large, bold, high contrast).
-2. Use "Subtext" as supporting body copy (smaller, below headline).
-3. Use "CTA" as a button or bottom banner text.
-4. Use "AI Visual Prompt" as the visual direction for the Canva design background/scene.
-5. Create each ad as a separate Canva design at ${dim}.${isCarousel ? `
-6. CAROUSEL format: Generate multi-page Canva designs (3-5 slides per ad).
-   - Slide 1: Hook Text as bold headline with striking visual.
-   - Slides 2-3: Subtext broken across slides with supporting visuals.
-   - Final slide: CTA with clear action button.` : ""}
-
-## Compliance Rules (CRITICAL — Claude MUST adhere to all compliance rules below)
-- You MUST strictly follow every compliance rule listed here. Do NOT deviate from or relax any rule, even if the ad copy in the CSV appears to do so.
-- Dreambound is the ONLY brand name.${!isGeneral ? ` NEVER use "${school}" or any school name in designs.` : ""}
-- No employment guarantees, outcome promises, or job placement language.
-- No "guarantee", "free", "dream career", "Fast Track".
-${!isGeneral && isDegree ? `- Degree program: use "study" and "education" only. Never "train"/"training".` : ""}${!isGeneral && !isDegree ? `- Certificate program: "training" is acceptable.${school === "CCI" ? " Urgency language OK." : ""}` : ""}${isGeneral ? `- General Dreambound content: focus on brand values and education marketplace positioning.` : ""}
-${school === "FSU" ? '- FSU: "Financial Aid is available for those who qualify." (exact wording)' : ""}${school === "AIU" || school === "CTU" ? `- ${school}: No urgency. Include "Completion times vary according to the individual student."` : ""}
-- If any text in the CSV conflicts with these compliance rules, the compliance rules take priority. Flag and correct any non-compliant language.
-
-## CSV Data
-${csvData}`;
-  };
-  const copyPrompt = () => { navigator.clipboard.writeText(buildPrompt()); setCopied(true); toast.success("Canva prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
-  const copyPexelsPrompt = () => { navigator.clipboard.writeText(buildPexelsPrompt()); setCopied(true); toast.success("Pexels + Style prompt copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
-  const copyCsv = () => { navigator.clipboard.writeText(csvWithInstructions()); setCopied(true); toast.success("CSV + instructions copied — paste into Claude Chat"); setTimeout(() => setCopied(false), 2500); };
-  const dlCsv = () => { const b = new Blob([csvRaw()], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `${school}_${program.replace(/\s+/g, "_")}_ads.csv`; a.click(); URL.revokeObjectURL(u); toast.success("CSV downloaded"); };
+  const copyPrompt = () => copyTo(buildPrompt(), "canva", "Canva prompt copied");
+  const copyPexelsPrompt = () => copyTo(buildPexelsPrompt(), "pexels", "Pexels + Style prompt copied");
+  const previewText = showPreview === "canva" ? buildPrompt() : showPreview === "pexels" ? buildPexelsPrompt() : "";
   return (
     <div className="space-y-6">
       <Card className="p-5 sm:p-7 space-y-5">
@@ -454,38 +334,31 @@ ${csvData}`;
             <div><Lbl>Extra Context</Lbl><textarea value={ctx} onChange={(e) => setCtx(e.target.value)} placeholder="Campaign angle, offers..." rows={2} style={{ width: "100%", background: "var(--bg-inset)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--text)", outline: "none", resize: "vertical" }} /></div>
           </MotionDiv>
         )}</AnimatePresence>
-        <div className="flex justify-end"><Btn onClick={gen} disabled={loading}>{loading && <Spinner />}{loading ? "Generating..." : `Generate ${ac} Ads`}</Btn></div>
+        <div className="flex flex-wrap gap-2 justify-end">
+          <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "9px 16px", borderRadius: 10, fontSize: 13, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}>
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+            {copiedKey === "canva" ? "Copied!" : `Copy for Canva (${ac} ads)`}
+          </button>
+          <button onClick={copyPexelsPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "var(--violet)", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", fontWeight: 700, padding: "9px 16px", borderRadius: 10, fontSize: 13, transition: "all 0.15s" }}>
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            {copiedKey === "pexels" ? "Copied!" : "Pexels + Style"}
+          </button>
+        </div>
       </Card>
-      {ads.length > 0 && (
-        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>Ad Creatives</span>
-              <Badge color="orange">{ads.length}</Badge>
-              {fmt === "Carousel" && <Badge color="violet">Carousel</Badge>}
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={copyPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "#fff", background: "var(--accent)", border: "1px solid var(--accent)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s", boxShadow: "var(--accent-glow)" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>{copied ? "Copied!" : "Copy for Canva"}</button>
-              <button onClick={copyPexelsPrompt} className="cursor-pointer flex items-center gap-1.5" style={{ color: "var(--violet)", background: "var(--violet-bg)", border: "1px solid var(--violet-border)", fontWeight: 700, padding: "7px 14px", borderRadius: 10, fontSize: 12, transition: "all 0.15s" }}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>{copied ? "Copied!" : "Pexels + Style"}</button>
-              <Btn2 onClick={copyCsv} color="violet"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy CSV</Btn2>
-              <Btn2 onClick={dlCsv}><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Download CSV</Btn2>
-            </div>
-          </div>
-          {/* Collapsible prompt preview */}
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={() => setShowPreview(showPreview === "canva" ? null : "canva")} className="cursor-pointer" style={{ fontSize: 11, fontWeight: 600, color: showPreview === "canva" ? "var(--accent)" : "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>{showPreview === "canva" ? "Hide" : "Preview"} Canva prompt</button>
+        <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>·</span>
+        <button onClick={() => setShowPreview(showPreview === "pexels" ? null : "pexels")} className="cursor-pointer" style={{ fontSize: 11, fontWeight: 600, color: showPreview === "pexels" ? "var(--violet)" : "var(--text-tertiary)", background: "none", border: "none", padding: 0 }}>{showPreview === "pexels" ? "Hide" : "Preview"} Pexels prompt</button>
+      </div>
+      <AnimatePresence>{showPreview && (
+        <MotionDiv initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
           <Card className="overflow-hidden">
-            <button onClick={() => setShowPreview(!showPreview)} className="cursor-pointer w-full flex items-center justify-between" style={{ padding: "10px 16px", background: "var(--accent-bg)", border: "none" }}>
-              <p style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>Paste into Claude Chat with Canva MCP to generate {ads.length} designs{fmt === "Carousel" ? " (carousel)" : ""}</p>
-              <svg style={{ color: "var(--accent)", transform: showPreview ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s" }} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-            </button>
-            <AnimatePresence>{showPreview && (
-              <MotionDiv initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-                <div style={{ padding: 16, background: "var(--bg-inset)", maxHeight: 300, overflow: "auto" }}><pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{buildPrompt()}</pre></div>
-              </MotionDiv>
-            )}</AnimatePresence>
+            <div style={{ padding: 16, background: "var(--bg-inset)", maxHeight: 480, overflow: "auto" }}>
+              <pre style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "monospace", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{previewText}</pre>
+            </div>
           </Card>
-          <div className="space-y-2.5">{ads.map((ad, i) => <AdCard key={i} ad={ad} i={i} />)}</div>
         </MotionDiv>
-      )}
+      )}</AnimatePresence>
     </div>
   );
 }
